@@ -2241,6 +2241,12 @@ async function captureChartImages(items){
       if(it.canvas){
         const chart = Chart.getChart(it.canvas);
         if(!chart) continue;
+        // Chart.js 預設會用動畫（約1秒）畫出圖表，剛渲染完的當下動畫還在跑到一半，
+        // 直接截圖會抓到畫一半的殘缺畫面（圓形圖尤其明顯，只會看到一小段弧形）。
+        // 必須先 stop() 停止動畫循環，再用 update('none') 強制立即完整重繪；
+        // 只呼叫 update('none') 不夠，動畫循環仍會在下一輪蓋回未完成的畫面。
+        chart.stop();
+        chart.update('none');
         dataUrl = chart.toBase64Image('image/png', 1);
         width = chart.width; height = chart.height;
       } else if(it.dom){
