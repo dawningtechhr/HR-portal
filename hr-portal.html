@@ -243,15 +243,17 @@ tr:hover td{background:var(--paper)}
 
 /* min-width:0 是關鍵：<canvas> 有內建的最小寬度，grid 項目預設 min-width:auto 會讓 1fr 欄位
    無法縮小到低於畫布的內建尺寸，導致整排圖表撐爆容器寬度、右側圖表跑到外框線之外。 */
-.chart-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1.15rem 1.3rem;min-width:0}
+.chart-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1.15rem 1.3rem;min-width:0;display:flex;flex-direction:column}
 .chart-card h3{font-size:.88rem;font-weight:700;color:var(--ink);margin-bottom:.1rem}
 .chart-card .cc-sub{font-size:.72rem;color:var(--ink3);margin-bottom:.85rem}
-.chart-canvas-wrap{position:relative;height:260px;min-width:0}
+/* flex:1 讓畫布區塊能撐滿卡片：同一列若因較高的鄰居（如含圖例的圓形圖）被 grid 拉高，
+   畫布會一併長高填滿多出的空間，而不是在下方留白，導致 X 軸／0 刻度位置偏移。 */
+.chart-canvas-wrap{position:relative;height:260px;min-width:0;min-height:0;flex:1 1 auto}
 .chart-canvas-wrap canvas{max-width:100%}
-.chart-canvas-wrap.tall{height:320px}
-.chart-canvas-wrap.short{height:200px}
+.chart-canvas-wrap.tall{height:320px;flex:none}
+.chart-canvas-wrap.short{height:200px;flex:none}
 /* 正方形外框：寬度隨欄寬（3欄網格皆等寬）決定高度，同一頁面的圖表框自然大小一致 */
-.chart-canvas-wrap.square{height:auto;aspect-ratio:1/1}
+.chart-canvas-wrap.square{height:auto;aspect-ratio:1/1;flex:none}
 /* 圓形圖圖例改用 HTML 呈現、放在畫布下方，讓圖例換行與否都不影響畫布內圓餅的大小與置中位置 */
 .donut-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:.35rem 1rem;margin-top:.85rem;padding:0 .25rem}
 .donut-legend .dl-item{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--ink2);white-space:nowrap}
@@ -493,7 +495,7 @@ tr:hover td{background:var(--paper)}
       <div class="page-sub">星座、生肖、生日月份由生日欄位即時換算，作為員工關懷／慶生活動參考 · 點選圖表中的任一指標，可於下方顯示符合條件的員工資料</div>
 
       <div class="charts-grid-2">
-        <div class="chart-card"><h3>血型</h3><div class="chart-canvas-wrap donut"><canvas id="c-bloodtype"></canvas></div><div class="donut-legend" id="c-bloodtype-legend"></div></div>
+        <div class="chart-card"><h3>血型分佈</h3><div class="chart-canvas-wrap donut"><canvas id="c-bloodtype"></canvas></div><div class="donut-legend" id="c-bloodtype-legend"></div></div>
         <div class="chart-card"><h3>星座分布</h3><div class="chart-canvas-wrap"><canvas id="c-zodiac"></canvas></div></div>
       </div>
       <div class="charts-grid-2">
@@ -659,7 +661,7 @@ tr:hover td{background:var(--paper)}
       <div class="config-card">
         <h3>員工關懷</h3>
         <div class="checkbox-grid">
-          <label><input type="checkbox" value="care:c-bloodtype">血型</label>
+          <label><input type="checkbox" value="care:c-bloodtype">血型分佈</label>
           <label><input type="checkbox" value="care:c-zodiac">星座分布</label>
           <label><input type="checkbox" value="care:c-cnzodiac">生肖分布</label>
           <label><input type="checkbox" value="care:c-bmonth">生日月份分布</label>
@@ -1286,13 +1288,9 @@ function barChart(id, labels, data, opts={}){
   if(opts.showValues) config.plugins = [makeBarValueLabelsPlugin()];
   drawChart(id, config);
 }
-/** 依切片底色亮度自動選白色或深色文字，確保圓形圖上直接標示的比例文字可讀。 */
+/** 圓形圖上直接標示的比例文字統一使用白色。 */
 function contrastTextColor(hex){
-  const c = String(hex).replace('#','');
-  if(c.length !== 6) return '#ffffff';
-  const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
-  const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
-  return luminance > 0.6 ? PALETTE.ink : '#ffffff';
+  return '#ffffff';
 }
 /** 在圓形圖切片上直接畫出百分比（切片過小如 <4% 時省略，避免文字互相重疊）。 */
 function makeDoughnutPercentPlugin(){
@@ -2206,7 +2204,7 @@ const CHART_CATALOG = {
     deptsummary:       {label:'各部門／事業部年資與離職概況', dom:'.dept-table-wrap', wrap:'.section-block'}
   }},
   care: { tabId:'tab-care', render:(stats,asOf)=>renderCare(stats,asOf), items:{
-    'c-bloodtype':{label:'血型', canvas:'c-bloodtype'},
+    'c-bloodtype':{label:'血型分佈', canvas:'c-bloodtype'},
     'c-zodiac':   {label:'星座分布', canvas:'c-zodiac'},
     'c-cnzodiac': {label:'生肖分布', canvas:'c-cnzodiac'},
     'c-bmonth':   {label:'生日月份分布', canvas:'c-bmonth'}
