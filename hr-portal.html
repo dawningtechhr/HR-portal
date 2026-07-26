@@ -1114,6 +1114,20 @@ function isActiveOn(emp, date){
 }
 function sameMonth(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
 
+/* 年化離職率：近12個月「每月月底在職人數」的平均值作分母，確保與總覽 KPI 卡片、
+   各部門／事業部年資與離職概況表格算出的數字一致（避免用單一時點在職人數估算造成誤差）。 */
+function annualizedTurnoverRate(scopedList, asOf){
+  let totalResigns = 0, totalHC = 0;
+  for(let i=11;i>=0;i--){
+    const mDate = new Date(asOf.getFullYear(), asOf.getMonth()-i, 1);
+    const monthEnd = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0, 23,59,59);
+    totalHC += scopedList.filter(e=>isActiveOn(e, monthEnd)).length;
+    totalResigns += scopedList.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), mDate)).length;
+  }
+  const avgHC = totalHC/12;
+  return avgHC>0 ? totalResigns/avgHC*100 : 0;
+}
+
 /* ---------- 統計彙整 ---------- */
 function computeStats(list, asOf){
   const active = list.filter(e=>e.employStatus==='在職');
@@ -1143,8 +1157,7 @@ function computeStats(list, asOf){
       const deptResigned12 = resigned12.filter(e=>e.deptCode===d.code);
       const deptHired12 = hired12.filter(e=>e.deptCode===d.code);
       const avgTenure = deptActive.length ? deptActive.reduce((s,e)=>s+tenureYears(e,asOf),0)/deptActive.length : 0;
-      const avgHC = deptActive.length + deptResigned12.length/2;
-      const rate = avgHC>0 ? deptResigned12.length/avgHC*100 : 0;
+      const rate = annualizedTurnoverRate(list.filter(e=>e.deptCode===d.code), asOf);
       return {code:d.code, name:d.name, headcount:deptActive.length, avgTenure, hired12:deptHired12.length, resigned12:deptResigned12.length, turnoverRate:rate};
     })
     .sort((a,b)=>b.headcount-a.headcount);
@@ -1160,8 +1173,7 @@ function computeStats(list, asOf){
       const divResigned12 = resigned12.filter(e=>deptToDivCode[e.deptCode]===dv.code);
       const divHired12 = hired12.filter(e=>deptToDivCode[e.deptCode]===dv.code);
       const avgTenure = divActive.length ? divActive.reduce((s,e)=>s+tenureYears(e,asOf),0)/divActive.length : 0;
-      const avgHC = divActive.length + divResigned12.length/2;
-      const rate = avgHC>0 ? divResigned12.length/avgHC*100 : 0;
+      const rate = annualizedTurnoverRate(list.filter(e=>deptToDivCode[e.deptCode]===dv.code), asOf);
       return {code:dv.code, name:dv.name, headcount:divActive.length, avgTenure, hired12:divHired12.length, resigned12:divResigned12.length, turnoverRate:rate};
     })
     .sort((a,b)=>b.headcount-a.headcount);
@@ -1194,9 +1206,7 @@ function computeStats(list, asOf){
     const rate = avgHC>0 ? resigns/avgHC*100 : 0;
     months.push({label:`${mDate.getMonth()+1}月`, headcount:activeAtEnd, resigns, hires, rate:+rate.toFixed(1)});
   }
-  const trailingResigns = months.reduce((s,m)=>s+m.resigns,0);
-  const avgHCYear = months.reduce((s,m)=>s+m.headcount,0)/months.length;
-  const annualTurnover = avgHCYear>0 ? trailingResigns/avgHCYear*100 : 0;
+  const annualTurnover = annualizedTurnoverRate(list, asOf);
 
   const zodiacCounts = ZODIAC.map(z=>({label:z.name, count:active.filter(e=>zodiacOf(e.birthday)===z.name).length}));
   const cnZodiacCounts = CN_ZODIAC.map(z=>({label:z, count:active.filter(e=>chineseZodiacOf(e.birthday)===z).length}));
