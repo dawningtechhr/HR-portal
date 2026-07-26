@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主管儀表板 — 人力資源即時分析平台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script>
+<style>
+:root{
+  --ink:#1a1814;--ink2:#3d3a34;--ink3:#7a7570;
+  --paper:#faf9f6;--paper2:#f2f0eb;--paper3:#e8e5de;
+  --accent:#F47920;--accent2:#D45F0A;--accent-light:#FEF5EC;
+  --red:#8b2020;--red-light:#fde8e8;
+  --green:#1a7a3a;--green-light:#e8f5ed;
+  --blue:#1a5fa8;--blue-light:#e8f0fb;
+  --radius:4px;--radius-lg:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh}
+input,select{font-family:'Noto Sans TC',sans-serif;font-size:14px;color:var(--ink);background:var(--paper);border:1px solid var(--paper3);border-radius:var(--radius);padding:9px 13px;width:100%;outline:none;transition:border-color .2s}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(244,121,32,.15)}
+button{font-family:'Noto Sans TC',sans-serif;cursor:pointer;border:none;border-radius:var(--radius);font-size:13px;font-weight:500;transition:all .15s}
+
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+
+/* ── LOGIN ── */
+#s-login{align-items:center;justify-content:center;background:var(--paper)}
+.login-wrap{width:100%;max-width:380px;padding:20px}
+.login-logo{text-align:center;margin-bottom:2rem}
+.login-logo img{height:59px;margin-bottom:.75rem}
+.login-logo h1{font-size:1.1rem;font-weight:700;color:var(--ink);margin-bottom:.25rem}
+.login-logo p{font-size:.8rem;color:var(--ink3)}
+.login-card{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--paper3);padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+.login-card h2{font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:1.25rem}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.78rem;font-weight:700;color:var(--ink2);margin-bottom:.35rem}
+.login-err{background:var(--red-light);color:var(--red);font-size:.8rem;padding:.6rem .9rem;border-radius:var(--radius);margin-bottom:.9rem;display:none}
+.btn-login{width:100%;background:var(--accent);color:#fff;padding:.75rem;font-size:.9rem;font-weight:700;border-radius:var(--radius);margin-top:.5rem}
+.btn-login:hover{background:var(--accent2)}
+
+/* ── ADMIN LAYOUT ── */
+#s-admin{flex-direction:row}
+.sidebar{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--paper3);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-logo{padding:1.2rem 1.4rem;border-bottom:1px solid var(--paper3)}
+.sb-logo img{height:34px}
+.sb-logo p{font-size:.72rem;color:var(--ink3);margin-top:.25rem}
+.sb-nav{flex:1;padding:.6rem 0}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.65rem 1.4rem;font-size:.85rem;color:var(--ink3);cursor:pointer;transition:all .12s;border-left:3px solid transparent}
+.nav-item:hover{background:var(--paper);color:var(--ink)}
+.nav-item.active{background:var(--accent-light);color:var(--accent);border-left-color:var(--accent);font-weight:500}
+.nav-item .ni{font-size:1rem;width:18px;text-align:center}
+.sb-footer{padding:1rem 1.4rem;border-top:1px solid var(--paper3)}
+.sb-user{display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem}
+.su-av{width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.75rem;color:#fff;font-weight:700;flex-shrink:0}
+.su-name{font-size:.82rem;font-weight:500;color:var(--ink)}
+.su-role{font-size:.7rem;color:var(--ink3)}
+.btn-logout{width:100%;background:var(--paper2);color:var(--ink2);padding:.55rem;border-radius:var(--radius);font-size:.8rem}
+.btn-logout:hover{background:var(--paper3)}
+
+.admin-main{flex:1;overflow-y:auto}
+.tab-content{display:none;padding:2rem 2.25rem;max-width:1080px}
+.tab-content.active{display:block}
+.page-title{font-size:1.4rem;font-weight:700;margin-bottom:.25rem}
+.page-sub{font-size:.85rem;color:var(--ink3);margin-bottom:1.75rem}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.75rem}
+.stat-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1.1rem 1.25rem}
+.sc-val{font-size:1.75rem;font-weight:700;margin-bottom:.2rem}
+.sc-val.red{color:var(--red)}.sc-val.green{color:var(--green)}.sc-val.blue{color:var(--blue)}.sc-val.ink{color:var(--ink)}
+.sc-lbl{font-size:.75rem;color:var(--ink3)}
+
+/* TABLE */
+.table-wrap{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);overflow:hidden}
+.table-head{padding:1rem 1.25rem;border-bottom:1px solid var(--paper3);display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.table-head h3{font-size:.95rem;font-weight:700}
+.table-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.search-box{position:relative}
+.search-box input{padding:.5rem .75rem .5rem 2rem;font-size:.82rem;width:200px}
+.search-box .si{position:absolute;left:.6rem;top:50%;transform:translateY(-50%);color:var(--ink3);font-size:.85rem}
+.filter-select{width:120px;padding:.5rem .75rem;font-size:.82rem}
+table{width:100%;border-collapse:collapse}
+th{font-size:.75rem;font-weight:700;color:var(--ink3);text-align:left;padding:.65rem 1rem;background:var(--paper2);border-bottom:1px solid var(--paper3);white-space:nowrap}
+td{font-size:.85rem;padding:.75rem 1rem;border-bottom:1px solid var(--paper3);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--paper)}
+.badge{display:inline-flex;align-items:center;font-size:.75rem;font-weight:700;padding:.2rem .65rem;border-radius:12px}
+.badge.pass{background:var(--green-light);color:var(--green)}
+.badge.fail{background:var(--red-light);color:var(--red)}
+.table-empty{padding:3rem;text-align:center;color:var(--ink3);font-size:.9rem}
+
+/* BUTTONS */
+.btn-sm{padding:.45rem .9rem;font-size:.78rem}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{background:transparent;color:var(--ink2);border:1px solid var(--paper3)}
+.btn-secondary:hover{background:var(--paper2)}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:#14602e}
+
+/* LOADING */
+.loading-wrap{padding:4rem;text-align:center;color:var(--ink3)}
+.spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--paper3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:.75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:1.5rem}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:var(--radius-lg);width:100%;max-width:560px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-head{padding:1.1rem 1.4rem;border-bottom:1px solid var(--paper3);display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:1rem;font-weight:700}
+.btn-close{background:var(--paper2);color:var(--ink2);width:28px;height:28px;border-radius:50%;font-size:1.1rem;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:1.4rem;overflow-y:auto;flex:1}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem}
+.detail-item{background:var(--paper2);border-radius:var(--radius);padding:.75rem 1rem}
+.detail-item .lbl{font-size:.72rem;color:var(--ink3);margin-bottom:.2rem}
+.detail-item .val{font-size:.9rem;font-weight:500}
+.score-big{text-align:center;padding:1.25rem;background:var(--paper2);border-radius:var(--radius-lg);margin-bottom:1rem}
+.score-big .num{font-size:2.5rem;font-weight:700}
+.score-big .num.pass{color:var(--green)}.score-big .num.fail{color:var(--red)}
+.score-big .sub{font-size:.82rem;color:var(--ink3);margin-top:.2rem}
+
+/* CONFIG */
+.config-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1.4rem;margin-bottom:1rem}
+.config-card h3{font-size:.95rem;font-weight:700;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--paper3)}
+.config-row{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem}
+.config-row label{font-size:.85rem;color:var(--ink2);width:140px;flex-shrink:0}
+.config-row input{max-width:320px}
+.config-hint{font-size:.75rem;color:var(--ink3);margin-top:.25rem}
+.url-display{font-size:.78rem;background:var(--paper2);border-radius:var(--radius);padding:.6rem .9rem;word-break:break-all;color:var(--ink2);margin-top:.5rem;font-family:monospace}
+
+/* ADMIN MANAGEMENT */
+.admin-list{display:flex;flex-direction:column;gap:0}
+.admin-row{display:flex;align-items:center;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--paper3)}
+.admin-row:last-child{border-bottom:none}
+.admin-av{width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.9rem;color:#fff;font-weight:700;flex-shrink:0}
+.admin-info{flex:1;min-width:0}
+.admin-name{font-size:.9rem;font-weight:700;color:var(--ink)}
+.admin-meta{font-size:.78rem;color:var(--ink3);margin-top:.15rem}
+.admin-actions{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.role-badge{font-size:.72rem;font-weight:700;padding:.2rem .75rem;border-radius:12px;background:var(--accent-light);color:var(--accent2);border:1px solid rgba(244,121,32,.25)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{background:#6b1818}
+
+/* MODAL FORM */
+.modal-form .form-group{margin-bottom:1rem}
+.modal-form label{display:block;font-size:.78rem;font-weight:700;color:var(--ink2);margin-bottom:.35rem}
+.modal-form input,.modal-form select{width:100%}
+.form-hint{font-size:.72rem;color:var(--ink3);margin-top:.25rem}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;border-top:1px solid var(--paper3);background:var(--paper);font-size:.8rem;color:var(--ink3)}
+.pg-btns{display:flex;gap:.4rem}
+.pg-btn{background:#fff;border:1px solid var(--paper3);color:var(--ink2);padding:.35rem .7rem;border-radius:var(--radius);font-size:.78rem;cursor:pointer}
+.pg-btn:hover{background:var(--paper2)}
+.pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed var(--paper3);border-radius:var(--radius-lg);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-light)}
+.upload-zone p{color:var(--ink3);font-size:.85rem;margin-top:.5rem}
+.upload-zone input[type=file]{display:none}
+
+/* NOTIFICATION CARDS */
+.notif-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1.4rem;margin-bottom:1rem}
+/* VIDEO MANAGEMENT */
+.video-preview-wrap{background:#000;border-radius:var(--radius-lg);overflow:hidden;aspect-ratio:16/9;width:100%;max-width:640px;margin-bottom:1rem;position:relative}
+.video-preview-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.video-preview-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#666;font-size:.85rem;gap:.5rem}
+.video-preview-placeholder .ph-icon{font-size:2.5rem}
+.vid-row{display:flex;align-items:flex-start;gap:1rem;margin-bottom:1rem}
+.vid-row label{font-size:.85rem;color:var(--ink2);width:160px;flex-shrink:0;padding-top:.6rem}
+.vid-row .vid-input-wrap{flex:1}
+.vid-row input{width:100%}
+.vid-hint{font-size:.75rem;color:var(--ink3);margin-top:.35rem;line-height:1.5}
+.duration-row{display:flex;align-items:center;gap:.5rem}
+.duration-row input{width:70px}
+.vid-status{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;padding:.3rem .75rem;border-radius:12px;margin-left:.75rem}
+.vid-status.ok{background:var(--green-light);color:var(--green)}
+.vid-status.err{background:var(--red-light);color:var(--red)}
+.vid-status.loading{background:var(--paper2);color:var(--ink3)}
+.notif-card h3{font-size:.95rem;font-weight:700;margin-bottom:.75rem;padding-bottom:.6rem;border-bottom:1px solid var(--paper3)}
+.notif-row{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem}
+.notif-row label{font-size:.85rem;color:var(--ink2);width:160px;flex-shrink:0}
+.notif-row input[type=date],.notif-row input[type=number]{max-width:200px}
+.toggle-wrap{display:flex;align-items:center;gap:.75rem}
+.toggle{position:relative;display:inline-block;width:44px;height:24px}
+.toggle input{display:none}
+.toggle-slider{position:absolute;inset:0;background:var(--paper3);border-radius:12px;cursor:pointer;transition:.2s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:var(--accent)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(20px)}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem}
+.status-dot.on{background:var(--green)}.status-dot.off{background:var(--ink3)}
+
+/* ═══════ HR DASHBOARD ADD-ONS ═══════ */
+#s-app{flex-direction:row}
+/* .admin-main 原本設 overflow-y:auto，但本身沒有高度限制，實際上並不會產生自己的捲動軸——
+   頁面真正的捲動是在瀏覽器視窗（body/html）上。CSS 規範中只要祖先元素設了非 visible 的
+   overflow，就會被視為 position:sticky 子孫元素的定位基準，即使該元素實際上沒有在捲動；
+   這會讓下方「全公司視角」列的 sticky 對到一個永遠不動的捲動基準，導致視覺上完全沒有凍結
+   效果、隨頁面內容一起被往上捲走。改為 visible 讓它不再誤判為捲動容器，sticky 才能正確
+   對齊到瀏覽器視窗的捲動位置，達到永遠固定在畫面最上方的效果。 */
+.admin-main{overflow-y:visible}
+.modal-form input:disabled{background:var(--paper2);color:var(--ink3);cursor:not-allowed}
+.topbar{background:#fff;border-bottom:1px solid var(--paper3);padding:.85rem 2.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.topbar .tb-title{font-size:.95rem;font-weight:700;color:var(--ink);margin-right:auto}
+.topbar .tb-asof{font-size:.75rem;color:var(--ink3);background:var(--paper2);padding:.35rem .75rem;border-radius:12px}
+.topbar select{width:auto;min-width:160px;padding:.5rem .75rem;font-size:.82rem}
+.topbar .btn-sm{white-space:nowrap}
+.tb-crumb{display:flex;align-items:center}
+.tb-crumb .tb-static{font-size:.82rem;color:var(--ink2);background:var(--paper2);padding:.5rem .9rem;border-radius:var(--radius);border:1px solid var(--paper3);white-space:nowrap}
+.tb-crumb-sep{color:var(--ink3);font-size:.8rem}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;margin-bottom:1.75rem}
+@media (max-width:1300px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:640px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1rem 1.1rem}
+.kpi-card .kv{font-size:1.55rem;font-weight:700;line-height:1.1}
+.kpi-card .kv.red{color:var(--red)}.kpi-card .kv.green{color:var(--green)}.kpi-card .kv.blue{color:var(--blue)}.kpi-card .kv.ink{color:var(--ink)}.kpi-card .kv.accent{color:var(--accent2)}
+.kpi-card .kl{font-size:.72rem;color:var(--ink3);margin-top:.3rem}
+.kpi-card .kd{font-size:.68rem;color:var(--ink3);margin-top:.15rem}
+
+.section-block{margin-bottom:1.75rem}
+.section-block h2{font-size:1rem;font-weight:700;color:var(--ink);margin-bottom:.15rem}
+.section-block .sec-sub{font-size:.78rem;color:var(--ink3);margin-bottom:1rem}
+
+.charts-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+.charts-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:1.25rem}
+.charts-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem}
+@media (max-width:1100px){.charts-grid-2,.charts-grid-3{grid-template-columns:1fr}}
+@media (max-width:900px){.charts-grid-4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.charts-grid-4{grid-template-columns:1fr}}
+.span-2{grid-column:span 2}
+@media (max-width:1100px){.span-2{grid-column:span 1}}
+
+/* min-width:0 是關鍵：<canvas> 有內建的最小寬度，grid 項目預設 min-width:auto 會讓 1fr 欄位
+   無法縮小到低於畫布的內建尺寸，導致整排圖表撐爆容器寬度、右側圖表跑到外框線之外。 */
+.chart-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1.15rem 1.3rem;min-width:0}
+.chart-card h3{font-size:.88rem;font-weight:700;color:var(--ink);margin-bottom:.1rem}
+.chart-card .cc-sub{font-size:.72rem;color:var(--ink3);margin-bottom:.85rem}
+.chart-canvas-wrap{position:relative;height:260px;min-width:0}
+.chart-canvas-wrap canvas{max-width:100%}
+.chart-canvas-wrap.tall{height:320px}
+.chart-canvas-wrap.short{height:200px}
+/* 正方形外框：寬度隨欄寬（3欄網格皆等寬）決定高度，同一頁面的圖表框自然大小一致 */
+.chart-canvas-wrap.square{height:auto;aspect-ratio:1/1}
+/* 圓形圖圖例改用 HTML 呈現、放在畫布下方，讓圖例換行與否都不影響畫布內圓餅的大小與置中位置 */
+.donut-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:.35rem 1rem;margin-top:.85rem;padding:0 .25rem}
+.donut-legend .dl-item{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--ink2);white-space:nowrap}
+.donut-legend .dl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* 組織圖：純 CSS 畫的樹狀圖（根節點＋連接線＋子節點，可選第三層），資料與旁邊長條圖同步 */
+.orgchart-wrap{overflow:auto;display:flex;align-items:center;justify-content:center;padding:1rem 0;height:auto;min-height:260px}
+.orgchart{position:relative;display:flex;flex-direction:column;align-items:center;min-width:min-content;width:100%}
+.oc-box{background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--radius);padding:.5rem .85rem;font-size:.76rem;font-weight:700;color:var(--ink);text-align:center;white-space:nowrap;line-height:1.3}
+.oc-root{display:flex;flex-direction:column;align-items:center}
+.oc-root .oc-box{background:var(--accent);color:#fff;border-color:var(--accent2)}
+.oc-root-stem{width:2px;height:18px;background:var(--paper3)}
+.oc-children{display:flex;justify-content:center;flex-wrap:wrap;position:relative;padding-top:18px;margin-top:0}
+.oc-children::before{content:'';position:absolute;top:0;left:8%;right:8%;height:2px;background:var(--paper3)}
+.oc-children.oc-single::before{display:none}
+.oc-child{position:relative;padding:.4rem .5rem 0;margin-top:0}
+.oc-child::before{content:'';position:absolute;top:-18px;left:50%;width:2px;height:18px;background:var(--paper3)}
+.oc-manager{display:block;font-size:.68rem;font-weight:400;color:var(--ink2);margin-top:.2rem}
+.oc-count{display:block;font-size:.66rem;font-weight:400;color:var(--ink3);margin-top:.15rem}
+.oc-root .oc-manager{color:rgba(255,255,255,.95)}
+.oc-root .oc-count{color:rgba(255,255,255,.85)}
+/* 目前部門篩選選到的部門，在組織圖上用淺粉紅色標示，方便對照。 */
+.oc-box-highlight{background:#ffe1ec;border-color:#ff9ec2}
+/* 第三層：總經理直屬部門。整組靠右對齊；連接線的實際座標（含總經理橫線右延伸段）
+   由 JS 於渲染後量測實際位置動態設定，確保直線精準對齊文字正中央並銜接到橫線。 */
+.oc-tier3-wrap{display:flex;flex-direction:column;align-items:flex-end;align-self:stretch;width:100%;padding-right:4%;margin-top:.5rem;box-sizing:border-box}
+.oc-tier3-connector{position:absolute;width:2px;background:var(--paper3)}
+.oc-bus-extend{position:absolute;height:2px;background:var(--paper3)}
+.oc-tier3-label{font-size:.7rem;color:var(--ink3);margin:0}
+.oc-tier3 .oc-box{background:#fff;font-weight:600;font-size:.72rem;padding:.4rem .7rem}
+.oc-tier3.oc-children{justify-content:flex-end}
+.donut-legend .dl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+.badge-pill{display:inline-flex;align-items:center;font-size:.7rem;font-weight:700;padding:.15rem .55rem;border-radius:10px;background:var(--accent-light);color:var(--accent2);margin-left:.4rem}
+
+.bday-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.75rem;margin-top:.9rem}
+.bday-card{background:var(--paper2);border-radius:var(--radius);padding:.75rem .9rem;display:flex;align-items:center;gap:.6rem}
+.bday-card .bc-icon{font-size:1.3rem}
+.bday-card .bc-name{font-size:.82rem;font-weight:700;color:var(--ink)}
+.bday-card .bc-meta{font-size:.7rem;color:var(--ink3);margin-top:.1rem}
+.bday-empty{padding:2rem;text-align:center;color:var(--ink3);font-size:.85rem}
+
+.dept-table-wrap{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);overflow:hidden;margin-top:1.25rem}
+.dept-table-wrap table td, .dept-table-wrap table th{text-align:center}
+
+/* 報表下載（Excel／Word）下拉選單：員工名單搜尋區、圖表下鑽篩選結果都共用同一組樣式。 */
+.dl-dropdown-wrap{position:relative;display:inline-block}
+.dl-dropdown-menu{display:none;position:absolute;top:100%;right:0;margin-top:.3rem;background:#fff;border:1px solid var(--paper3);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:30;min-width:150px;overflow:hidden}
+.dl-dropdown-menu.open{display:block}
+.dl-dropdown-menu button{display:block;width:100%;text-align:left;padding:.6rem .9rem;font-size:.8rem;color:var(--ink2);background:none;border:none;cursor:pointer}
+.dl-dropdown-menu button:hover{background:var(--paper2);color:var(--ink)}
+
+/* 員工名單、圖表下鑽（篩選結果）表格：每欄資料一律不換行，避免部門／職位等較長文字把列高撐開。 */
+#tab-directory table td, #tab-directory table th,
+.drill-section td, .drill-section th{white-space:nowrap}
+
+/* 員工名單、圖表下鑽結果表格：所有欄位（含表頭）一律置中顯示。 */
+#tab-directory table td, #tab-directory table th,
+.drill-section table td, .drill-section table th{text-align:center}
+
+/* 可排序表格欄位：點欄名切換排序，欄名旁固定顯示圖示（⇅ 表示可點選排序，▲／▼ 標示目前排序欄位與方向）。 */
+.sortable-th{cursor:pointer;user-select:none;white-space:nowrap}
+.sortable-th:hover{color:var(--accent2)}
+.sortable-th.active{color:var(--accent2)}
+.sort-icon{font-size:.8em;color:var(--ink3)}
+.sortable-th:hover .sort-icon, .sortable-th.active .sort-icon{color:var(--accent2)}
+
+.scope-chip{display:inline-flex;align-items:center;font-size:.7rem;font-weight:600;padding:.15rem .55rem;border-radius:10px;background:var(--paper2);color:var(--ink2);margin:.1rem .25rem .1rem 0}
+.scope-chips{display:flex;flex-wrap:wrap;margin-top:.3rem}
+.field-required{color:var(--red);font-weight:700}
+.field-legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.4rem .6rem;margin-top:.75rem;font-size:.78rem;color:var(--ink2)}
+.field-legend .fl-item{display:flex;align-items:center;gap:.4rem}
+.field-legend .dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.reserved-note{font-size:.78rem;color:var(--ink3);background:var(--paper2);border-radius:var(--radius);padding:.7rem .9rem;margin-top:.75rem;line-height:1.7}
+
+.checkbox-grid{display:flex;flex-direction:column;gap:.35rem;max-height:260px;overflow-y:auto;border:1px solid var(--paper3);border-radius:var(--radius);padding:.7rem .9rem}
+.checkbox-grid label{display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--ink2);font-weight:400}
+.checkbox-grid input{width:auto}
+
+.multiselect-note{font-size:.72rem;color:var(--ink3);margin-top:.3rem}
+
+</style>
+</head>
+<body>
+
+<!-- ═══════ LOGIN ═══════ -->
+<div id="s-login" class="screen active">
+  <div class="login-wrap">
+    <div class="login-logo">
+      <img src="data:image/webp;base64,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" alt="敦新">
+      <h1>人力資源即時分析平台</h1>
+      <p>HR Workforce Analytics Dashboard · 主管儀表板</p>
+    </div>
+    <div class="login-card">
+      <h2>🔐 主管登入</h2>
+      <div class="login-err" id="login-err">帳號或密碼錯誤，請重試</div>
+      <div class="form-group"><label>帳號</label><input type="text" id="login-user" placeholder="請輸入帳號" value=""></div>
+      <div class="form-group"><label>密碼</label><input type="password" id="login-pwd" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn-login" onclick="doLogin()">登入</button>
+      <div style="margin-top:1rem;font-size:.75rem;color:var(--ink3);text-align:center;line-height:1.9">
+        登入帳號為員工編號，首次登入密碼預設為身分證號，登入後請自行修改密碼
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ APP ═══════ -->
+<div id="s-app" class="screen">
+  <div class="sidebar">
+    <div class="sb-logo"><img src="data:image/webp;base64,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" style="height:30px"><p>人力資源即時分析平台</p></div>
+    <div class="sb-nav">
+      <div class="nav-item active" data-tab="tab-overview" onclick="switchTab('tab-overview')"><span class="ni">📊</span>總覽</div>
+      <div class="nav-item" data-tab="tab-composition" onclick="switchTab('tab-composition')"><span class="ni">🧩</span>人力組成</div>
+      <div class="nav-item" data-tab="tab-movement" onclick="switchTab('tab-movement')"><span class="ni">🔄</span>異動與年資</div>
+      <div class="nav-item" data-tab="tab-care" onclick="switchTab('tab-care')"><span class="ni">🎂</span>員工關懷</div>
+      <div class="nav-item" data-tab="tab-directory" onclick="switchTab('tab-directory')"><span class="ni">📋</span>員工名單</div>
+          </div>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="su-av" id="sb-avatar">A</div>
+        <div><div class="su-name" id="sb-name">—</div><div class="su-role" id="sb-role">—</div></div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="tb-title" id="tb-scope-label">全公司</div>
+      <div class="tb-crumb">
+        <select id="division-filter" onchange="changeDivisionFilter(this.value)"></select>
+        <span class="tb-static" id="division-label" style="display:none"></span>
+      </div>
+      <span class="tb-crumb-sep">›</span>
+      <div class="tb-crumb">
+        <select id="dept-filter" onchange="changeDeptFilter(this.value)"></select>
+        <span class="tb-static" id="dept-label" style="display:none"></span>
+      </div>
+      <span class="tb-asof" id="tb-asof">資料基準日：—</span>
+    </div>
+
+    <!-- ── 總覽 ── -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="page-title">人力總覽</div>
+      <div class="page-sub">即時彙整範圍內人力現況，開啟頁面時依當日日期重新計算</div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kv ink" id="kpi-active">—</div><div class="kl">在職人數</div></div>
+        <div class="kpi-card"><div class="kv red" id="kpi-turnover">—</div><div class="kl">年化離職率（近12個月）</div></div>
+        <div class="kpi-card"><div class="kv blue" id="kpi-tenure">—</div><div class="kl">平均年資</div></div>
+        <div class="kpi-card"><div class="kv ink" id="kpi-age">—</div><div class="kl">平均年齡</div></div>
+        <div class="kpi-card"><div class="kv accent" id="kpi-newhire">—</div><div class="kl">本月新進</div></div>
+        <div class="kpi-card"><div class="kv accent" id="kpi-bday">—</div><div class="kl">本月壽星</div></div>
+      </div>
+
+      <div class="charts-grid-2">
+        <div class="chart-card span-2"><h3 id="orgchart-title">組織圖</h3><div class="cc-sub" id="orgchart-sub">依目前檢視範圍呈現</div><div class="chart-canvas-wrap orgchart-wrap"><div class="orgchart" id="orgchart"></div></div></div>
+      </div>
+      <div class="charts-grid-2">
+        <div class="chart-card span-2"><h3 id="dept-chart-title">各部門人數</h3><div class="cc-sub" id="dept-chart-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap tall"><canvas id="c-dept"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ── 人力組成 ── -->
+    <div id="tab-composition" class="tab-content">
+      <div class="page-title">人力組成</div>
+      <div class="page-sub">參考全球大型企業常用之人力結構分析構面 · 點選圖表中的任一指標，可於下方顯示符合條件的員工資料</div>
+
+      <div class="charts-grid-4">
+        <div class="chart-card"><h3>性別比例</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-gender"></canvas></div><div class="donut-legend" id="c-gender-legend"></div></div>
+        <div class="chart-card"><h3>在職狀態分布</h3><div class="cc-sub">在職 vs. 近12個月離職</div><div class="chart-canvas-wrap square donut"><canvas id="c-status"></canvas></div><div class="donut-legend" id="c-status-legend"></div></div>
+        <div class="chart-card"><h3>最高學歷</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-edu"></canvas></div><div class="donut-legend" id="c-edu-legend"></div></div>
+        <div class="chart-card"><h3>身份類別</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-identity"></canvas></div><div class="donut-legend" id="c-identity-legend"></div></div>
+        <div class="chart-card"><h3>族群身分</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-ethnic"></canvas></div><div class="donut-legend" id="c-ethnic-legend"></div></div>
+        <div class="chart-card"><h3>職種分布</h3><div class="cc-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap square"><canvas id="c-jobcat"></canvas></div></div>
+        <div class="chart-card"><h3>工作地點</h3><div class="cc-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap square"><canvas id="c-worklocation"></canvas></div></div>
+        <div class="chart-card"><h3>年齡分布</h3><div class="cc-sub">依當日日期計算週歲</div><div class="chart-canvas-wrap square"><canvas id="c-age"></canvas></div></div>
+        <div class="chart-card"><h3>年資分布</h3><div class="cc-sub">依到職年資起算日計算</div><div class="chart-canvas-wrap square"><canvas id="c-tenure"></canvas></div></div>
+        <div class="chart-card"><h3>職等分布</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square"><canvas id="c-grade"></canvas></div></div>
+      </div>
+
+      <div class="section-block drill-section" id="comp-drill" style="display:none">
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3 id="comp-drill-title">篩選結果</h3>
+            <div class="table-actions">
+              <span class="cc-sub" id="comp-drill-count" style="margin-right:.75rem"></span>
+              <button class="btn-secondary btn-sm" onclick="clearDrill('composition')">清除篩選 ✕</button>
+              <div class="dl-dropdown-wrap">
+                <button class="btn-secondary btn-sm" onclick="toggleReportMenu(this)">📄 報表下載</button>
+                <div class="dl-dropdown-menu">
+                  <button onclick="downloadReport('composition','xlsx')">Excel（.xlsx）</button>
+                  <button onclick="downloadReport('composition','docx')">Word（.docx）</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <table>
+            <thead id="comp-drill-thead"></thead>
+            <tbody id="comp-drill-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 異動與年資 ── -->
+    <div id="tab-movement" class="tab-content">
+      <div class="page-title">人力異動與年資</div>
+      <div class="page-sub">離職率採年化計算：近12個月離職人數 ÷ 期間平均在職人數</div>
+
+      <div class="charts-grid-2">
+        <div class="chart-card"><h3>年度人力趨勢</h3><div class="cc-sub">近10年，每年年底在職人數（今年為當日在職人數）</div><div class="chart-canvas-wrap"><canvas id="c-year-trend"></canvas></div></div>
+        <div class="chart-card"><h3>月份人力趨勢</h3><div class="cc-sub">近12個月，每月月底在職人數（本月為當日在職人數）</div><div class="chart-canvas-wrap"><canvas id="c-month-trend"></canvas></div></div>
+      </div>
+      <div class="charts-grid-2">
+        <div class="chart-card"><h3>月別離職率趨勢</h3><div class="cc-sub">近12個月，每月結算</div><div class="chart-canvas-wrap"><canvas id="c-turnover-trend"></canvas></div></div>
+        <div class="chart-card"><h3>每月到職／離職人數</h3><div class="cc-sub">近12個月</div><div class="chart-canvas-wrap"><canvas id="c-hire-resign"></canvas></div></div>
+      </div>
+
+      <div class="section-block">
+        <h2 id="dept-summary-title">各部門年資與離職概況</h2>
+        <div class="sec-sub">依目前檢視權限範圍列出</div>
+        <div class="dept-table-wrap">
+          <table>
+            <thead><tr><th id="dept-summary-colhead">部門</th><th>在職人數</th><th>平均年資</th><th>近12月到職人數</th><th>近12月離職人數</th><th>年化離職率</th></tr></thead>
+            <tbody id="dept-summary-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 員工關懷 ── -->
+    <div id="tab-care" class="tab-content">
+      <div class="page-title">員工關懷</div>
+      <div class="page-sub">星座、生肖、生日月份由生日欄位即時換算，作為員工關懷／慶生活動參考 · 點選圖表中的任一指標，可於下方顯示符合條件的員工資料</div>
+
+      <div class="charts-grid-2">
+        <div class="chart-card"><h3>血型</h3><div class="chart-canvas-wrap donut"><canvas id="c-bloodtype"></canvas></div><div class="donut-legend" id="c-bloodtype-legend"></div></div>
+        <div class="chart-card"><h3>星座分布</h3><div class="chart-canvas-wrap"><canvas id="c-zodiac"></canvas></div></div>
+      </div>
+      <div class="charts-grid-2">
+        <div class="chart-card"><h3>生肖分布</h3><div class="chart-canvas-wrap"><canvas id="c-cnzodiac"></canvas></div></div>
+        <div class="chart-card"><h3>生日月份分布<span class="badge-pill" id="bday-month-badge">本月壽星 0 位</span></h3><div class="chart-canvas-wrap"><canvas id="c-bmonth"></canvas></div></div>
+      </div>
+
+      <div class="section-block">
+        <h2>本月壽星</h2>
+        <div id="bday-list" class="bday-grid"></div>
+      </div>
+
+      <div class="section-block drill-section" id="care-drill" style="display:none">
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3 id="care-drill-title">篩選結果</h3>
+            <div class="table-actions">
+              <span class="cc-sub" id="care-drill-count" style="margin-right:.75rem"></span>
+              <button class="btn-secondary btn-sm" onclick="clearDrill('care')">清除篩選 ✕</button>
+              <div class="dl-dropdown-wrap">
+                <button class="btn-secondary btn-sm" onclick="toggleReportMenu(this)">📄 報表下載</button>
+                <div class="dl-dropdown-menu">
+                  <button onclick="downloadReport('care','xlsx')">Excel（.xlsx）</button>
+                  <button onclick="downloadReport('care','docx')">Word（.docx）</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <table>
+            <thead id="care-drill-thead"></thead>
+            <tbody id="care-drill-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 員工名單 ── -->
+    <div id="tab-directory" class="tab-content">
+      <div class="page-title">員工名單</div>
+      <div class="page-sub">僅顯示表頭紅底之必要欄位</div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <h3>員工清單</h3>
+          <div class="table-actions">
+            <div class="search-box"><span class="si">🔍</span><input type="text" id="dir-search" placeholder="搜尋姓名或員工編號" oninput="renderDirectory()"></div>
+            <div class="dl-dropdown-wrap">
+              <button class="btn-secondary btn-sm" onclick="toggleReportMenu(this)">📄 報表下載</button>
+              <div class="dl-dropdown-menu">
+                <button onclick="downloadReport('directory','xlsx')">Excel（.xlsx）</button>
+                <button onclick="downloadReport('directory','docx')">Word（.docx）</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <table>
+          <thead id="dir-thead"></thead>
+          <tbody id="dir-body"></tbody>
+        </table>
+        <div class="pagination">
+          <span id="dir-count"></span>
+          <div class="pg-btns" id="dir-pager"></div>
+        </div>
+      </div>
+    </div>
+
+      </div>
+</div>
+
+
+
+<script>const PORTAL_MODE = 'manager';</script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   敦新人力資源即時分析平台
+   ══════════════════════════════════════════════════════════════ */
+
+/* ---------- Google 試算表後端設定（對應 Code.gs）---------- */
+const GS_CFG_KEY = 'hr_dash_gs_url';
+let GS_URL = (localStorage.getItem(GS_CFG_KEY) || 'https://script.google.com/macros/s/AKfycbzYmYkICz7CD7d3jC4MSCc4CkScGw0pnB4ZTx1ZH9pgxmZTpfQ5wWXqSdhIpOgJFcw0/exec').trim();
+
+/* ---------- 色彩（依 dataviz 規範：單一數列用品牌色，多數列用固定順序類別色，狀態用狀態色）---------- */
+const PALETTE = {
+  ink:'#1a1814', ink2:'#3d3a34', ink3:'#7a7570', paper3:'#e8e5de',
+  accent:'#F47920', accent2:'#D45F0A',
+  blue:'#2a78d6', orange:'#eb6834', aqua:'#1baf7a', yellow:'#eda100',
+  magenta:'#e87ba4', green:'#008300', violet:'#4a3aa7', red:'#e34948', pink:'#ff9ec2',
+  good:'#0ca30c', warning:'#fab219', serious:'#ec835a', critical:'#d03b3b'
+};
+const CAT = [PALETTE.blue, PALETTE.orange, PALETTE.aqua, PALETTE.yellow, PALETTE.magenta, PALETTE.green, PALETTE.violet, PALETTE.red];
+/** 年齡／年資級距定義：提到模組層級，讓 computeStats() 與圖表下鑽點選都能共用同一份定義，避免兩邊各自維護一份而不同步。 */
+const AGE_BANDS = [['<25',0,24],['25-34',25,34],['35-44',35,44],['45-54',45,54],['55+',55,999]];
+const TENURE_BANDS = [['未滿1年',0,1],['1-3年',1,3],['3-5年',3,5],['5-10年',5,10],['10年以上',10,999]];
+const MONTH_LABELS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+/* ---------- 組織結構（示範資料；設定 GS_URL 後改由「組織架構」工作表提供）----------
+   代碼與 Code.gs 的 setupSheets() 種子資料一致，事業部 → 部門 兩層結構。 */
+const DIVISIONS = [
+  {code:'HQ',      name:'經營層'},
+  {code:'BU-OPS',  name:'營運本部'},
+  {code:'BU-TECH', name:'技術本部'},
+  {code:'BU-MFG',  name:'製造本部'},
+  {code:'BU-ADM',  name:'管理本部'}
+];
+const DEPARTMENTS = [
+  {code:'3DA100', name:'總經理室',   divisionCode:'HQ'},
+  {code:'3DA211', name:'商務營運處', divisionCode:'BU-OPS'},
+  {code:'3DE200', name:'業務部',     divisionCode:'BU-OPS'},
+  {code:'3DB100', name:'研發部',     divisionCode:'BU-TECH'},
+  {code:'3DB200', name:'品質保證部', divisionCode:'BU-TECH'},
+  {code:'3DC100', name:'生產製造部', divisionCode:'BU-MFG'},
+  {code:'3DC200', name:'倉儲物流部', divisionCode:'BU-MFG'},
+  {code:'3DD100', name:'人力資源部', divisionCode:'BU-ADM'},
+  {code:'3DD200', name:'財務部',     divisionCode:'BU-ADM'},
+  {code:'3DE100', name:'資訊部',     divisionCode:'BU-ADM'}
+];
+const DEPT_BY_CODE = Object.fromEntries(DEPARTMENTS.map(d=>[d.code,d]));
+let ORG_TREE = { divisions: DIVISIONS, departments: DEPARTMENTS };
+
+/** 組織架構優先向試算表拉取（getOrgStructure），失敗或未設定 GS_URL 時使用內建示範結構。 */
+function loadOrgTree(cb){
+  if(!GS_URL){ ORG_TREE = { divisions: DIVISIONS, departments: DEPARTMENTS }; cb && cb(); return; }
+  gsGet('getOrgStructure').then(d=>{
+    if(d.ok && Array.isArray(d.divisions) && Array.isArray(d.departments) && d.divisions.length){
+      ORG_TREE = { divisions: d.divisions, departments: d.departments };
+    } else {
+      ORG_TREE = { divisions: DIVISIONS, departments: DEPARTMENTS };
+    }
+    cb && cb();
+  }).catch(()=>{ ORG_TREE = { divisions: DIVISIONS, departments: DEPARTMENTS }; cb && cb(); });
+}
+
+/**
+ * 依帳號 scope（['ALL'] / 事業部代碼 / 部門代碼，可混合多筆）解析出可視範圍。
+ * level 用於決定下鑽 UI：company（可選事業部＋部門）／division（僅可選部門）／department（無可下鑽，固定單一部門）。
+ */
+function resolveScope(scope, orgTree){
+  const divisions = orgTree.divisions || [];
+  const departments = orgTree.departments || [];
+  if(!scope || scope.includes('ALL')){
+    return { level:'company', divisions: divisions.slice(), departments: departments.slice() };
+  }
+  const divCodes = scope.filter(c => divisions.some(d=>d.code===c));
+  const deptCodesDirect = scope.filter(c => departments.some(d=>d.code===c));
+  const visibleDepartments = departments.filter(d =>
+    divCodes.includes(d.divisionCode) || deptCodesDirect.includes(d.code)
+  );
+  // 事業部清單同時涵蓋「直接授權的事業部」與「直接授權部門的所屬事業部」，
+  // 後者純粹用於麵包屑顯示父層名稱，不會擴大 visibleDepartments 的實際可視部門範圍。
+  const parentDivCodes = new Set(visibleDepartments.map(d=>d.divisionCode).filter(Boolean));
+  const visibleDivisions = divisions.filter(d => divCodes.includes(d.code) || parentDivCodes.has(d.code));
+  let level = 'mixed';
+  if(divCodes.length && !deptCodesDirect.length) level = 'division';
+  else if(deptCodesDirect.length && !divCodes.length) level = 'department';
+  return { level, divisions: visibleDivisions, departments: visibleDepartments };
+}
+
+const DEPT_PROFILE = {
+  '3DA100':{positions:['資深專案處長','特別助理','總經理室主任'],           grades:[7,8,9],      jobCat:'行政一般', direct:'間接員工', loc:['台北'], size:3},
+  '3DA211':{positions:['商務營運處長','專案經理','高級管理師','營運企劃'],  grades:[4,5,6,7],    jobCat:'行政一般', direct:'間接員工', loc:['台北','倉庫'], size:8},
+  '3DE200':{positions:['業務協理','業務主管','業務專員','業務助理'],        grades:[3,4,5,6,8],  jobCat:'業務人員', direct:'間接員工', loc:['台北','台中'], size:11},
+  '3DB100':{positions:['研發經理','資深工程師','工程師','助理工程師'],      grades:[3,4,5,6],    jobCat:'研發人員', direct:'間接員工', loc:['台北','新竹'], size:9},
+  '3DB200':{positions:['品保經理','品保工程師','品管人員'],                 grades:[3,4,5,6],    jobCat:'品保人員', direct:'間接員工', loc:['台中'], size:7},
+  '3DC100':{positions:['製造課長','產線班長','資深作業員','作業員'],        grades:[1,2,3,4,5],  jobCat:'製造人員', direct:'直接員工', loc:['台中','高雄'], size:28},
+  '3DC200':{positions:['物流主管','倉管人員','物流專員'],                   grades:[2,3,4,5],    jobCat:'物流人員', direct:'直接員工', loc:['台中','倉庫'], size:10},
+  '3DD100':{positions:['人資經理','人資專員','人資助理'],                   grades:[3,4,5,6],    jobCat:'行政一般', direct:'間接員工', loc:['台北'], size:6},
+  '3DD200':{positions:['財務經理','會計專員','出納人員'],                   grades:[3,4,5,6],    jobCat:'行政一般', direct:'間接員工', loc:['台北'], size:6},
+  '3DE100':{positions:['IT經理','系統工程師','MIS人員'],                    grades:[3,4,5,6],    jobCat:'資訊人員', direct:'間接員工', loc:['台北'], size:6}
+};
+
+const LOC_PLANT = {'台北':'北區','新竹':'北區','台中':'中區','高雄':'南區','倉庫':'北區'};
+
+/* ---------- 決定性隨機（同一天內每次開啟結果一致，僅供示範資料）---------- */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(880725);
+function pick(arr){ return arr[Math.floor(rand()*arr.length)]; }
+function pickW(arr){ // [[value,weight],...]
+  const total = arr.reduce((s,a)=>s+a[1],0);
+  let r = rand()*total;
+  for(const [v,w] of arr){ if((r-=w)<=0) return v; }
+  return arr[arr.length-1][0];
+}
+function randInt(min,max){ return Math.floor(rand()*(max-min+1))+min; }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function mkDate(y,m,d){ return new Date(y,m-1,d); }
+function toISO(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function fromISO(s){ return s ? new Date(s+'T00:00:00') : null; }
+
+const SURNAMES = ['陳','林','黃','張','李','王','吳','劉','蔡','楊','許','鄭','謝','郭','洪','曾','邱','廖','賴','徐','周','葉','蘇','莊','呂','江','何','蕭','羅','高'];
+const M_GIVEN = ['志明','家豪','俊傑','建宏','冠廷','宗翰','柏翔','彥廷','政宏','宇軒','承翰','昱丞','明哲','偉誠','忠翰','志良','豐楙','岳榮','慕義'];
+const F_GIVEN = ['淑芬','美玲','雅婷','怡君','思穎','佳蓉','詩涵','品妍','宜蓁','靜怡','曉筠','惠雯','心妤','詠晴','子涵'];
+const M_EN_FIRST = ['Victor','Eric','Long','Jack','David','Kevin','Alex','Tom','Leo','Ray','Sam','Jason','Peter','Andy','Kyle'];
+const F_EN_FIRST = ['Amy','Cindy','Grace','Emily','Ivy','Judy','Karen','Lisa','Michelle','Nancy','Olivia','Peggy','Rita','Sunny','Vivian'];
+const EN_LAST = ['Chang','Chen','Huang','Wang','Lee','Wu','Liu','Tsai','Yang','Hsu','Cheng','Kuo','Hung','Tseng','Chiu'];
+const REGIONS = ['100 台北市中正區','103 台北市大同區','104 台北市中山區','106 台北市大安區','108 台北市萬華區','220 新北市板橋區','231 新北市新店區','241 新北市三重區','300 新竹市東區','400 台中市中區','700 台南市中西區','800 高雄市新興區','260 宜蘭縣宜蘭市','320 桃園市中壢區'];
+
+let empSeq = 0;
+function genEmpId(){ empSeq++; return `${randInt(1000,9999)}${String(empSeq).padStart(3,'0')}D`; }
+
+function genOneEmployee(deptCode, forceStatus){
+  const profile = DEPT_PROFILE[deptCode];
+  const dept = DEPT_BY_CODE[deptCode];
+  const gender = pickW([['男',56],['女',44]]);
+  const surname = pick(SURNAMES);
+  const given = gender==='男' ? pick(M_GIVEN) : pick(F_GIVEN);
+  const enFirst = gender==='男' ? pick(M_EN_FIRST) : pick(F_EN_FIRST);
+  const today = new Date();
+  const age = randInt(23,58);
+  const birth = mkDate(today.getFullYear()-age, randInt(1,12), randInt(1,28));
+  const tenureStart = mkDate(randInt(2004, today.getFullYear()-1), randInt(1,12), randInt(1,28));
+  const loc = pick(profile.loc);
+
+  let employStatus = '在職', resignDate = '';
+  if(forceStatus==='離職'){
+    employStatus = '離職';
+    const back = randInt(5,360);
+    const rd = new Date(today.getTime()-back*86400000);
+    resignDate = toISO(rd);
+  }
+
+  return {
+    empId: genEmpId(),
+    name: surname+given,
+    enName: `${enFirst} ${pick(EN_LAST)}`,
+    nationality: '臺灣，中華民國',
+    gender,
+    birthday: toISO(birth),
+    bloodType: pickW([['A型',28],['B型',24],['AB型',10],['O型',30],['',8]]),
+    marital: pickW([['已婚',48],['未婚',44],['離婚',8]]),
+    ethnic: pickW([['一般',88],['原住民',6],['',6]]),
+    education: pickW([['碩士',14],['大學',34],['四技',18],['二技',10],['高中職',20],['國中',4]]),
+    householdRegion: pick(REGIONS),
+    mailingRegion: pick(REGIONS),
+    deptCode: dept.code,
+    deptName: `${dept.code} ${dept.name}`,
+    position: pick(profile.positions),
+    grade: String(pick(profile.grades)),
+    jobCategory: profile.jobCat,
+    identityCategory: pickW([['一般員工',92],['約聘人員',5],['建教生',3]]),
+    directIndirect: rand() < (profile.direct==='直接員工' ? 0.82 : 0.05) ? profile.direct : (profile.direct==='直接員工' ? '間接員工' : '直接員工'),
+    workArea: '台灣',
+    workLocation: loc,
+    plant: LOC_PLANT[loc] || '北區',
+    employStatus,
+    resignDate,
+    tenureStart: toISO(tenureStart),
+    deductYears: pickW([[0,90],[0.5,6],[1,4]])
+  };
+}
+
+function generateEmployees(){
+  const list = [];
+  DEPARTMENTS.forEach(d=>{
+    const n = DEPT_PROFILE[d.code].size;
+    for(let i=0;i<n;i++) list.push(genOneEmployee(d.code));
+  });
+  // 隨機挑選約 10 位轉為近12個月離職，用於呈現離職率相關圖表
+  const leaverCount = 10;
+  for(let i=0;i<leaverCount;i++){
+    const idx = randInt(0, list.length-1);
+    const src = list[idx];
+    list[idx] = Object.assign({}, src, genOneEmployee(src.deptCode, '離職'));
+    list[idx].empId = src.empId; list[idx].name = src.name; list[idx].enName = src.enName;
+  }
+  return list;
+}
+
+/* ---------- 帳號（分層式權限：scope 為 ['ALL'] / 事業部代碼 / 部門代碼，可混合多筆）----------
+   與 Code.gs 的 setupSheets() 種子帳號一致（管理員／主管明細 兩個工作表），
+   示範全公司／事業部／部門 三種層級。 */
+const DEFAULT_ACCOUNTS = [
+  {id:'1', name:'人資長 王雅慧', username:'admin',           password:'admin1234',  role:'admin',   scope:['ALL'], email:''},
+  {id:'2', name:'陳彥廷',       username:'ops_div_head',    password:'opsdiv1234', role:'manager', scope:['BU-OPS'],  dept:'營運本部',   title:'協理'},
+  {id:'3', name:'蔡淑芬',       username:'mfg_div_head',    password:'mfgdiv1234', role:'manager', scope:['BU-MFG'],  dept:'製造本部',   title:'協理'},
+  {id:'4', name:'林俊宏',       username:'tech_div_head',   password:'techdiv1234',role:'manager', scope:['BU-TECH'], dept:'技術本部',   title:'協理'},
+  {id:'5', name:'黃雅筑',       username:'adm_div_head',    password:'admdiv1234', role:'manager', scope:['BU-ADM'],  dept:'管理本部',   title:'協理'},
+  {id:'6', name:'何思妤',       username:'hq_div_head',     password:'hqdiv1234',  role:'manager', scope:['HQ'],       dept:'總經理室',   title:'主任'},
+  {id:'7', name:'林建宏',       username:'mfg_dept_head',   password:'mfg1234',    role:'manager', scope:['3DC100'],   dept:'生產製造部', title:'經理'},
+  {id:'8', name:'周慕義',       username:'sales_dept_head', password:'sales1234',  role:'manager', scope:['3DE200'],   dept:'業務部',     title:'經理'}
+];
+
+const ACC_KEY = 'hr_dash_accounts_v1';
+const EMP_KEY = 'hr_dash_employees_v1';
+const SESSION_KEY = 'hr_dash_session_v1';
+
+/* ---------- Google Apps Script 呼叫小工具 ----------
+   GET  用於讀取（?action=xxx&...），POST 用於寫入（body 為 JSON，不設 Content-Type
+   以避免瀏覽器送出 CORS 預檢請求，Apps Script 端以 e.postData.contents 解析）。 */
+function gsGet(action, params){
+  if(!GS_URL) return Promise.reject(new Error('尚未設定 GS_URL'));
+  const qs = Object.assign({action}, params||{});
+  const url = GS_URL + '?' + Object.keys(qs).map(k=>`${encodeURIComponent(k)}=${encodeURIComponent(qs[k])}`).join('&');
+  return fetch(url).then(r=>r.json());
+}
+function gsPost(payload){
+  if(!GS_URL) return Promise.reject(new Error('尚未設定 GS_URL'));
+  return fetch(GS_URL, { method:'POST', body:JSON.stringify(payload) }).then(r=>r.json());
+}
+
+function getAccounts(){
+  const raw = localStorage.getItem(ACC_KEY);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  setAccounts(DEFAULT_ACCOUNTS);
+  return DEFAULT_ACCOUNTS;
+}
+function setAccounts(list){ localStorage.setItem(ACC_KEY, JSON.stringify(list)); }
+
+let EMPLOYEES = [];
+function loadEmployeesLocal(){
+  const raw = localStorage.getItem(EMP_KEY);
+  if(raw){ try{ EMPLOYEES = JSON.parse(raw); return; }catch(e){} }
+  EMPLOYEES = generateEmployees();
+}
+/** 優先向 Google 試算表取得員工資料，失敗或未設定網址時回退為本機資料。 */
+function loadEmployees(cb){
+  if(!GS_URL){ loadEmployeesLocal(); cb && cb(); return; }
+  gsGet('getEmployees').then(d=>{
+    if(d.ok && Array.isArray(d.list) && d.list.length){
+      EMPLOYEES = d.list.map(o=>Object.assign({}, o, {deductYears:Number(o.deductYears)||0}));
+      saveEmployees();
+    } else {
+      loadEmployeesLocal();
+    }
+    cb && cb();
+  }).catch(()=>{ loadEmployeesLocal(); cb && cb(); });
+}
+function saveEmployees(){ localStorage.setItem(EMP_KEY, JSON.stringify(EMPLOYEES)); }
+function resetDemoData(){
+  if(!confirm('確定要清除目前資料並重置為示範資料嗎？（此操作不會影響已連接的 Google 試算表，僅重置本機資料）')) return;
+  localStorage.removeItem(EMP_KEY);
+  loadEmployeesLocal();
+  renderAll();
+  document.getElementById('import-status').innerHTML = '<span style="color:var(--green)">已重置為示範資料</span>';
+}
+
+/* ---------- 資料來源設定 UI ---------- */
+function saveGSUrl(){
+  const v = document.getElementById('gs-url-input').value.trim();
+  GS_URL = v;
+  localStorage.setItem(GS_CFG_KEY, v);
+  document.getElementById('gs-url-status').innerHTML = v
+    ? '<span style="color:var(--green)">已儲存，下次登入／同步將使用此試算表</span>'
+    : '<span style="color:var(--ink3)">已清空，將使用本機示範資料</span>';
+  renderGSUrlDisplay();
+}
+function renderGSUrlDisplay(){
+  const el = document.getElementById('gs-url-display');
+  if(!el) return;
+  el.textContent = GS_URL || '（尚未設定，目前使用本機示範資料）';
+  const input = document.getElementById('gs-url-input');
+  if(input) input.value = GS_URL;
+}
+function testGSConnection(){
+  const status = document.getElementById('gs-url-status');
+  if(!GS_URL){ status.innerHTML = '<span style="color:var(--red)">請先輸入並儲存 Apps Script 網址</span>'; return; }
+  status.innerHTML = '<span style="color:var(--ink3)">連線測試中…</span>';
+  gsGet('getEmployees').then(d=>{
+    status.innerHTML = d.ok
+      ? `<span style="color:var(--green)">連線成功，試算表內有 ${d.list.length} 筆員工資料</span>`
+      : `<span style="color:var(--red)">連線失敗：${d.error||'未知錯誤'}</span>`;
+  }).catch(err=>{
+    status.innerHTML = `<span style="color:var(--red)">連線失敗：${err.message}</span>`;
+  });
+}
+function syncFromBackend(){
+  const status = document.getElementById('gs-url-status');
+  if(!GS_URL){ status.innerHTML = '<span style="color:var(--red)">請先設定 Apps Script 網址</span>'; return; }
+  status.innerHTML = '<span style="color:var(--ink3)">同步中…</span>';
+  loadEmployees(()=>{
+    loadOrgTree(()=>{
+      populateOrgFilters();
+      status.innerHTML = `<span style="color:var(--green)">已同步，目前共 ${EMPLOYEES.length} 筆員工資料</span>`;
+      refreshAccountsFromBackend(()=>{ renderAdminList(); });
+      renderAll();
+    });
+  });
+}
+function refreshAccountsFromBackend(cb){
+  if(!GS_URL){ cb && cb(); return; }
+  gsGet('getAccounts').then(d=>{
+    if(d.ok && Array.isArray(d.list)){
+      // 試算表不回傳密碼，登入驗證一律透過 auth action 進行；本機快取的密碼欄位保留供離線回退比對。
+      const local = getAccounts();
+      const merged = d.list.map(a=>{
+        const prev = local.find(l=>l.id===a.id);
+        return Object.assign({}, a, prev && prev.password ? {password:prev.password} : {});
+      });
+      setAccounts(merged);
+    }
+    cb && cb();
+  }).catch(()=>{ cb && cb(); });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   即時計算：年齡 / 星座 / 生肖 / 年資 / 離職率
+   ══════════════════════════════════════════════════════════════ */
+const MS_YEAR = 365.25*86400000;
+
+function ageOn(birthISO, asOf){
+  const b = fromISO(birthISO);
+  let age = asOf.getFullYear()-b.getFullYear();
+  const m = asOf.getMonth()-b.getMonth();
+  if(m<0 || (m===0 && asOf.getDate()<b.getDate())) age--;
+  return age;
+}
+
+const ZODIAC = [
+  {name:'摩羯座', from:[12,22], to:[1,19]},
+  {name:'水瓶座', from:[1,20], to:[2,18]},
+  {name:'雙魚座', from:[2,19], to:[3,20]},
+  {name:'牡羊座', from:[3,21], to:[4,19]},
+  {name:'金牛座', from:[4,20], to:[5,20]},
+  {name:'雙子座', from:[5,21], to:[6,20]},
+  {name:'巨蟹座', from:[6,21], to:[7,22]},
+  {name:'獅子座', from:[7,23], to:[8,22]},
+  {name:'處女座', from:[8,23], to:[9,22]},
+  {name:'天秤座', from:[9,23], to:[10,22]},
+  {name:'天蠍座', from:[10,23], to:[11,21]},
+  {name:'射手座', from:[11,22], to:[12,21]}
+];
+function zodiacOf(birthISO){
+  const b = fromISO(birthISO);
+  const m = b.getMonth()+1, d = b.getDate();
+  for(const z of ZODIAC){
+    const [fm,fd]=z.from, [tm,td]=z.to;
+    if(fm===tm){ if(m===fm && d>=fd && d<=td) return z.name; }
+    else if(fm>tm){ if((m===fm && d>=fd) || (m===tm && d<=td)) return z.name; }
+    else { if((m===fm && d>=fd) || (m>fm && m<tm) || (m===tm && d<=td)) return z.name; }
+  }
+  return '未知';
+}
+const CN_ZODIAC = ['鼠','牛','虎','兔','龍','蛇','馬','羊','猴','雞','狗','豬'];
+function chineseZodiacOf(birthISO){
+  const y = fromISO(birthISO).getFullYear();
+  let idx = (y-4)%12;
+  if(idx<0) idx+=12;
+  return CN_ZODIAC[idx];
+}
+function tenureYears(emp, asOf){
+  const start = fromISO(emp.tenureStart);
+  const end = (emp.employStatus==='離職' && emp.resignDate) ? fromISO(emp.resignDate) : asOf;
+  let yrs = (end-start)/MS_YEAR;
+  yrs -= (Number(emp.deductYears)||0);
+  return Math.max(0,yrs);
+}
+function fmtYears(yrs){
+  const y = Math.floor(yrs);
+  const m = Math.round((yrs-y)*12);
+  if(m>=12) return `${y+1}年0個月`;
+  return `${y}年${m}個月`;
+}
+function isActiveOn(emp, date){
+  const start = fromISO(emp.tenureStart);
+  if(start>date) return false;
+  if(emp.employStatus==='離職' && emp.resignDate){
+    if(fromISO(emp.resignDate) < date) return false;
+  }
+  return true;
+}
+function sameMonth(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
+
+/* ---------- 統計彙整 ---------- */
+function computeStats(list, asOf){
+  const active = list.filter(e=>e.employStatus==='在職');
+  const resigned12 = list.filter(e=>e.employStatus==='離職' && e.resignDate && (asOf-fromISO(e.resignDate))<=365*86400000);
+  const hired12 = list.filter(e=>e.tenureStart && (asOf-fromISO(e.tenureStart))<=365*86400000);
+
+  const count = (arr,key)=>{
+    const m = {};
+    arr.forEach(e=>{ const k=e[key]||'未填寫'; m[k]=(m[k]||0)+1; });
+    return m;
+  };
+
+  const ageBandCounts = AGE_BANDS.map(([label,lo,hi])=>{
+    const c = active.filter(e=>{ const a=ageOn(e.birthday,asOf); return a>=lo && a<=hi; }).length;
+    return {label,count:c};
+  });
+
+  const tenureBandCounts = TENURE_BANDS.map(([label,lo,hi])=>{
+    const c = active.filter(e=>{ const t=tenureYears(e,asOf); return t>=lo && t<hi; }).length;
+    return {label,count:c};
+  });
+
+  const deptStats = (ORG_TREE.departments || DEPARTMENTS)
+    .filter(d=>active.some(e=>e.deptCode===d.code) || list.some(e=>e.deptCode===d.code))
+    .map(d=>{
+      const deptActive = active.filter(e=>e.deptCode===d.code);
+      const deptResigned12 = resigned12.filter(e=>e.deptCode===d.code);
+      const deptHired12 = hired12.filter(e=>e.deptCode===d.code);
+      const avgTenure = deptActive.length ? deptActive.reduce((s,e)=>s+tenureYears(e,asOf),0)/deptActive.length : 0;
+      const avgHC = deptActive.length + deptResigned12.length/2;
+      const rate = avgHC>0 ? deptResigned12.length/avgHC*100 : 0;
+      return {code:d.code, name:d.name, headcount:deptActive.length, avgTenure, hired12:deptHired12.length, resigned12:deptResigned12.length, turnoverRate:rate};
+    })
+    .sort((a,b)=>b.headcount-a.headcount);
+
+  // 事業部層級的年資／離職概況（邏輯與 deptStats 相同，只是改成依事業部分組），
+  // 供「全部事業部」視角下的「各部門年資與離職概況」表格改用事業部彙總資料。
+  const deptToDivCode = {};
+  (ORG_TREE.departments || DEPARTMENTS).forEach(d=>{ deptToDivCode[d.code] = d.divisionCode; });
+  const divisionStats = (ORG_TREE.divisions || DIVISIONS)
+    .filter(dv=>active.some(e=>deptToDivCode[e.deptCode]===dv.code) || list.some(e=>deptToDivCode[e.deptCode]===dv.code))
+    .map(dv=>{
+      const divActive = active.filter(e=>deptToDivCode[e.deptCode]===dv.code);
+      const divResigned12 = resigned12.filter(e=>deptToDivCode[e.deptCode]===dv.code);
+      const divHired12 = hired12.filter(e=>deptToDivCode[e.deptCode]===dv.code);
+      const avgTenure = divActive.length ? divActive.reduce((s,e)=>s+tenureYears(e,asOf),0)/divActive.length : 0;
+      const avgHC = divActive.length + divResigned12.length/2;
+      const rate = avgHC>0 ? divResigned12.length/avgHC*100 : 0;
+      return {code:dv.code, name:dv.name, headcount:divActive.length, avgTenure, hired12:divHired12.length, resigned12:divResigned12.length, turnoverRate:rate};
+    })
+    .sort((a,b)=>b.headcount-a.headcount);
+
+  // 年度人力趨勢（近10年）：每年以「年底」在職人數結算，今年尚未走完，改以「當日」在職人數為準。
+  const yearTrend = [];
+  for(let i=9;i>=0;i--){
+    const y = asOf.getFullYear() - i;
+    const isCurrentYear = i===0;
+    const refDate = isCurrentYear ? asOf : new Date(y, 11, 31, 23,59,59);
+    yearTrend.push({label:String(y), headcount:list.filter(e=>isActiveOn(e, refDate)).length});
+  }
+  // 月份人力趨勢（近12個月）：每月以「月底」在職人數結算，本月尚未走完，改以「當日」在職人數為準。
+  const monthHeadcountTrend = [];
+  for(let i=11;i>=0;i--){
+    const mDate = new Date(asOf.getFullYear(), asOf.getMonth()-i, 1);
+    const isCurrentMonth = i===0;
+    const refDate = isCurrentMonth ? asOf : new Date(mDate.getFullYear(), mDate.getMonth()+1, 0, 23,59,59);
+    monthHeadcountTrend.push({label:`${mDate.getMonth()+1}月`, headcount:list.filter(e=>isActiveOn(e, refDate)).length});
+  }
+
+  const months = [];
+  for(let i=11;i>=0;i--){
+    const mDate = new Date(asOf.getFullYear(), asOf.getMonth()-i, 1);
+    const monthEnd = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0, 23,59,59);
+    const activeAtEnd = list.filter(e=>isActiveOn(e, monthEnd)).length;
+    const resigns = list.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), mDate)).length;
+    const hires = list.filter(e=>sameMonth(fromISO(e.tenureStart), mDate)).length;
+    const avgHC = activeAtEnd + resigns/2;
+    const rate = avgHC>0 ? resigns/avgHC*100 : 0;
+    months.push({label:`${mDate.getMonth()+1}月`, headcount:activeAtEnd, resigns, hires, rate:+rate.toFixed(1)});
+  }
+  const trailingResigns = months.reduce((s,m)=>s+m.resigns,0);
+  const avgHCYear = months.reduce((s,m)=>s+m.headcount,0)/months.length;
+  const annualTurnover = avgHCYear>0 ? trailingResigns/avgHCYear*100 : 0;
+
+  const zodiacCounts = ZODIAC.map(z=>({label:z.name, count:active.filter(e=>zodiacOf(e.birthday)===z.name).length}));
+  const cnZodiacCounts = CN_ZODIAC.map(z=>({label:z, count:active.filter(e=>chineseZodiacOf(e.birthday)===z).length}));
+  const birthMonthCounts = MONTH_LABELS.map((label,i)=>({label, count:active.filter(e=>fromISO(e.birthday).getMonth()===i).length}));
+
+  const thisMonthBirthdays = active
+    .filter(e=>fromISO(e.birthday).getMonth()===asOf.getMonth())
+    .sort((a,b)=>fromISO(a.birthday).getDate()-fromISO(b.birthday).getDate());
+
+  const newHiresThisMonth = list.filter(e=>sameMonth(fromISO(e.tenureStart), asOf)).length;
+
+  const avgAge = active.length ? active.reduce((s,e)=>s+ageOn(e.birthday,asOf),0)/active.length : 0;
+  const avgTenureAll = active.length ? active.reduce((s,e)=>s+tenureYears(e,asOf),0)/active.length : 0;
+
+  return {
+    active, resigned12,
+    activeCount: active.length,
+    annualTurnover, avgAge, avgTenureAll, newHiresThisMonth,
+    genderCounts: count(active,'gender'),
+    eduCounts: count(active,'education'),
+    jobCatCounts: count(active,'jobCategory'),
+    bloodTypeCounts: count(active,'bloodType'),
+    gradeCounts: count(active,'grade'),
+    identityCounts: count(active,'identityCategory'),
+    ethnicCounts: count(active,'ethnic'),
+    workLocationCounts: count(active,'workLocation'),
+    ageBandCounts, tenureBandCounts, deptStats, divisionStats, months, yearTrend, monthHeadcountTrend,
+    zodiacCounts, cnZodiacCounts, birthMonthCounts, thisMonthBirthdays
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Chart.js 圖表繪製
+   ══════════════════════════════════════════════════════════════ */
+const charts = {};
+function drawChart(id, config){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(charts[id]){ charts[id].destroy(); }
+  charts[id] = new Chart(el.getContext('2d'), config);
+}
+/** 在長條末端直接標出數值的輕量內建 plugin（僅套用於有傳 opts.showValues 的圖表，不影響其他長條圖）。 */
+function makeBarValueLabelsPlugin(){
+  return {
+    id:'barValueLabels',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      const horizontal = chart.options.indexAxis === 'y';
+      ctx.save();
+      ctx.fillStyle = PALETTE.ink2;
+      ctx.font = "600 11px 'Noto Sans TC', sans-serif";
+      chart.data.datasets.forEach((dataset, di)=>{
+        chart.getDatasetMeta(di).data.forEach((bar, idx)=>{
+          const value = dataset.data[idx];
+          if(value === null || value === undefined) return;
+          if(horizontal){
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(String(value), bar.x + 6, bar.y);
+          } else {
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText(String(value), bar.x, bar.y - 4);
+          }
+        });
+      });
+      ctx.restore();
+    }
+  };
+}
+function barChart(id, labels, data, opts={}){
+  const config = {
+    type:'bar',
+    data:{labels, datasets:[{data, backgroundColor: opts.color||PALETTE.accent, borderRadius:4, maxBarThickness:opts.thick||30}]},
+    options:{
+      indexAxis: opts.horizontal?'y':'x',
+      responsive:true, maintainAspectRatio:false,
+      layout: opts.showValues ? {padding: opts.horizontal ? {right:30} : {top:20}} : undefined,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:!!opts.horizontal, color:PALETTE.paper3}, ticks:Object.assign({color:PALETTE.ink3, font:{size: opts.noRotate?10:11}}, opts.noRotate?{maxRotation:0, minRotation:0, autoSkip:false}:{})},
+        y:{beginAtZero:true, grid:{display:!opts.horizontal, color:PALETTE.paper3}, ticks:{color:PALETTE.ink3, font:{size:11}}}
+      },
+      onClick: opts.onClick ? (evt, elements, chart)=>{
+        if(!elements.length) return;
+        opts.onClick(chart.data.labels[elements[0].index]);
+      } : undefined,
+      onHover: opts.onClick ? (evt, elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; } : undefined
+    }
+  };
+  if(opts.showValues) config.plugins = [makeBarValueLabelsPlugin()];
+  drawChart(id, config);
+}
+/** 依切片底色亮度自動選白色或深色文字，確保圓形圖上直接標示的比例文字可讀。 */
+function contrastTextColor(hex){
+  const c = String(hex).replace('#','');
+  if(c.length !== 6) return '#ffffff';
+  const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+  const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return luminance > 0.6 ? PALETTE.ink : '#ffffff';
+}
+/** 在圓形圖切片上直接畫出百分比（切片過小如 <4% 時省略，避免文字互相重疊）。 */
+function makeDoughnutPercentPlugin(){
+  return {
+    id:'doughnutPercentLabels',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      const meta = chart.getDatasetMeta(0);
+      const dataset = chart.data.datasets[0];
+      const total = dataset.data.reduce((s,v)=>s+(Number(v)||0), 0);
+      if(total <= 0) return;
+      ctx.save();
+      ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      meta.data.forEach((arc, i)=>{
+        const value = dataset.data[i];
+        if(!value) return;
+        const pct = value/total*100;
+        if(pct < 4) return;
+        const angle = (arc.startAngle + arc.endAngle) / 2;
+        const radius = (arc.innerRadius + arc.outerRadius) / 2;
+        const x = arc.x + Math.cos(angle)*radius;
+        const y = arc.y + Math.sin(angle)*radius;
+        ctx.fillStyle = contrastTextColor(dataset.backgroundColor[i]);
+        ctx.fillText(pct.toFixed(1)+'%', x, y);
+      });
+      ctx.restore();
+    }
+  };
+}
+/** 在折線圖每個資料點上方標出數值（percent 為真時加上 % 後綴），供人力趨勢／離職率趨勢圖表使用。 */
+function makeLineValueLabelsPlugin(percent){
+  return {
+    id:'lineValueLabels',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      ctx.save();
+      ctx.fillStyle = PALETTE.ink2;
+      ctx.font = "600 10px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      chart.data.datasets.forEach((dataset, di)=>{
+        chart.getDatasetMeta(di).data.forEach((point, idx)=>{
+          const value = dataset.data[idx];
+          if(value === null || value === undefined) return;
+          ctx.fillText(percent ? value+'%' : String(value), point.x, point.y - 6);
+        });
+      });
+      ctx.restore();
+    }
+  };
+}
+/**
+ * 圖例改用 HTML 畫在畫布外（見 id+'-legend' 容器），不再用 Chart.js 內建圖例。
+ * 這樣圖例換不換行、換幾行，都不會佔用畫布內的空間，圓餅永遠置中、永遠同樣大小，
+ * 不會因為類別數量不同（換行圖例）而縮小或偏移位置。
+ */
+function doughnutChart(id, labels, data, colors, opts={}){
+  drawChart(id, {
+    type:'doughnut',
+    data:{labels, datasets:[{data, backgroundColor:colors, borderColor:'#fff', borderWidth:2}]},
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{legend:{display:false}},
+      onClick: opts.onClick ? (evt, elements, chart)=>{
+        if(!elements.length) return;
+        opts.onClick(chart.data.labels[elements[0].index]);
+      } : undefined,
+      onHover: opts.onClick ? (evt, elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; } : undefined
+    },
+    plugins:[makeDoughnutPercentPlugin()]
+  });
+  const legendEl = document.getElementById(id+'-legend');
+  if(legendEl){
+    legendEl.innerHTML = labels.map((label,i)=>
+      `<span class="dl-item"><span class="dl-dot" style="background:${colors[i]}"></span>${label}</span>`
+    ).join('');
+  }
+}
+function lineChart(id, labels, data, color, opts={}){
+  const config = {
+    type:'line',
+    data:{labels, datasets:[{data, borderColor:color, backgroundColor:color+'22', fill:true, tension:.3, pointRadius:3, pointBackgroundColor:color, borderWidth:2}]},
+    options:{
+      responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      layout: opts.showValues ? {padding:{top:20}} : undefined,
+      scales:{
+        x:{grid:{display:false}, ticks:{color:PALETTE.ink3, font:{size:11}}},
+        y:{beginAtZero:true, grid:{color:PALETTE.paper3}, ticks:{color:PALETTE.ink3, font:{size:11}, callback: opts.percent ? (v=>v+'%') : (v=>v)}}
+      }
+    }
+  };
+  if(opts.showValues) config.plugins = [makeLineValueLabelsPlugin(opts.percent)];
+  drawChart(id, config);
+}
+function groupedBarChart(id, labels, series, colors, opts={}){
+  const config = {
+    type:'bar',
+    data:{labels, datasets: series.map((s,i)=>({label:s.label, data:s.data, backgroundColor:colors[i], borderRadius:4, maxBarThickness:20}))},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout: opts.showValues ? {padding:{top:20}} : undefined,
+      plugins:{legend:{position:'bottom', labels:{color:PALETTE.ink2, font:{size:11}, usePointStyle:true, pointStyle:'circle'}}},
+      scales:{
+        x:{grid:{display:false}, ticks:{color:PALETTE.ink3, font:{size:11}}},
+        y:{beginAtZero:true, grid:{color:PALETTE.paper3}, ticks:{color:PALETTE.ink3, font:{size:11}}}
+      }
+    }
+  };
+  if(opts.showValues) config.plugins = [makeBarValueLabelsPlugin()];
+  drawChart(id, config);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   狀態 / 權限 / 畫面控制
+   ══════════════════════════════════════════════════════════════ */
+let currentUser = null;
+let currentDivisionFilter = 'ALL';
+let currentDeptFilter = 'ALL';
+
+function fillLogin(u,p){ document.getElementById('login-user').value=u; document.getElementById('login-pwd').value=p; }
+
+function doLogin(){
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pwd').value;
+  const err = document.getElementById('login-err');
+  err.textContent = '帳號或密碼錯誤，請重試';
+
+  if(!u || !p){ err.style.display='block'; return; }
+
+  if(GS_URL){
+    err.textContent = '驗證中…'; err.style.display='block';
+    gsPost({action:'auth', username:u, password:p}).then(d=>{
+      if(d.ok){
+        // 以後端回傳的正式帳號大小寫為準（主管登入帳號密碼不分大小寫，顯示仍統一用試算表原始寫法）
+        attemptLogin({id:d.id, name:d.name, username:d.username||u, role:d.role, scope:d.scope}, err);
+      } else {
+        loginLocal(u,p,err);
+      }
+    }).catch(()=>loginLocal(u,p,err));
+    return;
+  }
+  loginLocal(u,p,err);
+}
+/** 主管（員工編號＋密碼）登入不分英文大小寫；人資管理員帳號維持區分大小寫。 */
+function accountMatches(a,u,p){
+  if(a.role === 'manager'){
+    return String(a.username).toLowerCase() === String(u).toLowerCase() &&
+           String(a.password).toLowerCase() === String(p).toLowerCase();
+  }
+  return a.username === u && a.password === p;
+}
+function loginLocal(u,p,err){
+  const acc = getAccounts().find(a=>accountMatches(a,u,p));
+  if(!acc){ err.textContent='帳號或密碼錯誤，請重試'; err.style.display='block'; return; }
+  attemptLogin(acc, err);
+}
+/** PORTAL_MODE 由各 HTML 於載入時設定：'hr' 入口僅供人資管理員登入，主管帳號一律導回主管儀表板。 */
+function attemptLogin(acc, err){
+  if(typeof PORTAL_MODE !== 'undefined' && PORTAL_MODE === 'hr' && acc.role !== 'admin'){
+    err.textContent = '此為人資管理登入頁，主管帳號請至「主管儀表板」登入';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  loginAs(acc);
+}
+function loginAs(acc){
+  currentUser = acc;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(acc));
+  enterApp();
+}
+function doLogout(){
+  sessionStorage.removeItem(SESSION_KEY);
+  currentUser = null;
+  document.getElementById('s-app').classList.remove('active');
+  document.getElementById('s-login').classList.add('active');
+}
+function tryAutoLogin(){
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if(!raw) return false;
+  try{
+    const acc = JSON.parse(raw);
+    if(typeof PORTAL_MODE !== 'undefined' && PORTAL_MODE === 'hr' && acc.role !== 'admin') return false;
+    // 有設定試算表時信任既有 session（帳號實際有效性由後續 API 呼叫把關）；
+    // 純本機模式則需帳號仍存在於本機快取，避免已刪除帳號的 session 殘留可用。
+    if(GS_URL || getAccounts().find(a=>a.id===acc.id)){ currentUser=acc; enterApp(); return true; }
+  }catch(e){}
+  return false;
+}
+
+/** 目前登入帳號依 scope 解析出的可視範圍（company / division / department / mixed）。 */
+function currentScope(){
+  return resolveScope(currentUser ? currentUser.scope : [], ORG_TREE);
+}
+/** 在「目前選取的事業部」條件下，可視的部門清單（尚未套用部門篩選）。 */
+function departmentsInCurrentDivision(){
+  const depts = currentScope().departments;
+  if(currentDivisionFilter === 'ALL') return depts;
+  return depts.filter(d => d.divisionCode === currentDivisionFilter);
+}
+function scopedEmployees(){
+  if(!currentUser) return [];
+  const codes = new Set(currentScope().departments.map(d=>d.code));
+  return EMPLOYEES.filter(e=>codes.has(e.deptCode));
+}
+function filteredEmployees(){
+  let depts = departmentsInCurrentDivision();
+  if(currentDeptFilter !== 'ALL') depts = depts.filter(d=>d.code===currentDeptFilter);
+  const codes = new Set(depts.map(d=>d.code));
+  return EMPLOYEES.filter(e=>codes.has(e.deptCode));
+}
+/** 依「目前選擇的事業部」代碼取得該事業部「全部部門」的員工，供組織圖使用：
+ *  刻意改用 ORG_TREE 的完整部門清單（而非 currentScope().departments），不受登入者的權限範圍限制——
+ *  選特定事業部時（不論部門篩選選了什麼），組織圖都要呈現整個事業部的部門結構與人數；
+ *  即使登入者是「部門主管」（權限僅限單一部門），組織圖也要能顯示其所屬事業部的完整樣貌，
+ *  只是會在該部門主管自己負責的那個部門方框標示淺粉紅色，其餘資料頁面／圖表仍照原本權限範圍顯示。 */
+function divisionScopedEmployees(){
+  const departments = ORG_TREE.departments || DEPARTMENTS;
+  const depts = currentDivisionFilter === 'ALL' ? departments : departments.filter(d => d.divisionCode === currentDivisionFilter);
+  const codes = new Set(depts.map(d=>d.code));
+  return EMPLOYEES.filter(e=>codes.has(e.deptCode));
+}
+
+function enterApp(){
+  document.getElementById('s-login').classList.remove('active');
+  document.getElementById('s-app').classList.add('active');
+  document.getElementById('sb-name').textContent = currentUser.name;
+  document.getElementById('sb-role').textContent = currentUser.role==='admin' ? '人資管理員' : '部門主管';
+  document.getElementById('sb-avatar').textContent = currentUser.name.slice(-2,-1) || currentUser.name.slice(0,1);
+  const navAdmin = document.getElementById('nav-admin');
+  if(navAdmin) navAdmin.style.display = currentUser.role==='admin' ? '' : 'none';
+  const navChartDownload = document.getElementById('nav-chartdownload');
+  if(navChartDownload) navChartDownload.style.display = currentUser.role==='admin' ? '' : 'none';
+
+  const asOf = new Date();
+  document.getElementById('tb-asof').textContent = `資料基準日：${asOf.getFullYear()}/${pad2(asOf.getMonth()+1)}/${pad2(asOf.getDate())}`;
+
+  // 組織圖需要即時的主管帳號資料（姓名／職稱）才能正確對應顯示，
+  // 因此登入時除了組織架構外，也一併向後端刷新帳號清單，避免僅靠本機舊快取（多數部門對不到主管）。
+  let pending = 2;
+  const proceedWhenReady = ()=>{
+    pending--;
+    if(pending > 0) return;
+    currentDivisionFilter = 'ALL';
+    currentDeptFilter = 'ALL';
+    populateOrgFilters();
+    switchTab('tab-overview');
+  };
+  loadOrgTree(proceedWhenReady);
+  refreshAccountsFromBackend(proceedWhenReady);
+}
+
+/** 依 currentScope().level 決定事業部／部門下拉選單要顯示為可切換的下拉，還是收合成固定文字。 */
+function populateOrgFilters(){
+  const scope = currentScope();
+  const scopeLabel = document.getElementById('tb-scope-label');
+  const labelText = {company:'全公司視角', division:'事業部視角', department:'部門視角', mixed:'責任範圍視角'}[scope.level];
+  scopeLabel.textContent = labelText;
+
+  const divSel = document.getElementById('division-filter');
+  const divLbl = document.getElementById('division-label');
+  if(scope.divisions.length > 1){
+    divSel.style.display = ''; divLbl.style.display = 'none';
+    divSel.innerHTML = `<option value="ALL">全部事業部</option>` +
+      scope.divisions.map(d=>`<option value="${d.code}">${d.name}</option>`).join('');
+    divSel.value = currentDivisionFilter;
+  } else {
+    divSel.style.display = 'none'; divLbl.style.display = '';
+    divLbl.textContent = scope.divisions[0] ? scope.divisions[0].name : '—';
+    currentDivisionFilter = scope.divisions[0] ? scope.divisions[0].code : 'ALL';
+  }
+
+  renderDeptFilterOptions();
+}
+function renderDeptFilterOptions(){
+  const depts = departmentsInCurrentDivision();
+  const deptSel = document.getElementById('dept-filter');
+  const deptLbl = document.getElementById('dept-label');
+  // 選擇「全部事業部」時，部門篩選只能固定為「全部部門」，避免事業部與部門篩選條件互相衝突
+  // （例如選了全部事業部、卻又選到單一部門，會讓組織圖誤以為是全公司範圍、但人數只算到一個部門）。
+  if(currentDivisionFilter === 'ALL'){
+    deptSel.style.display = 'none'; deptLbl.style.display = '';
+    deptLbl.textContent = '全部部門';
+    currentDeptFilter = 'ALL';
+    return;
+  }
+  if(depts.length > 1){
+    deptSel.style.display = ''; deptLbl.style.display = 'none';
+    deptSel.innerHTML = `<option value="ALL">全部部門</option>` +
+      depts.map(d=>`<option value="${d.code}">${d.name}</option>`).join('');
+    deptSel.value = currentDeptFilter;
+  } else {
+    deptSel.style.display = 'none'; deptLbl.style.display = '';
+    deptLbl.textContent = depts[0] ? depts[0].name : '—';
+    currentDeptFilter = depts[0] ? depts[0].code : 'ALL';
+  }
+}
+function changeDivisionFilter(v){
+  currentDivisionFilter = v;
+  currentDeptFilter = 'ALL';
+  renderDeptFilterOptions();
+  renderAll();
+}
+function changeDeptFilter(v){ currentDeptFilter = v; renderAll(); }
+
+function switchTab(tabId){
+  if((tabId==='tab-admin' || tabId==='tab-chartdownload') && (!currentUser || currentUser.role!=='admin')) tabId='tab-overview';
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.tab===tabId));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id===tabId));
+  requestAnimationFrame(()=>renderAll());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   渲染
+   ══════════════════════════════════════════════════════════════ */
+function renderAll(){
+  if(!currentUser) return;
+  const asOf = new Date();
+  const list = filteredEmployees();
+  const stats = computeStats(list, asOf);
+
+  renderKPI(stats);
+  const activeTab = document.querySelector('.tab-content.active').id;
+  if(activeTab==='tab-overview') renderOverview(stats);
+  if(activeTab==='tab-composition') renderComposition(stats, asOf);
+  if(activeTab==='tab-movement') renderMovement(stats);
+  if(activeTab==='tab-care') renderCare(stats, asOf);
+  if(activeTab==='tab-directory') renderDirectory();
+  if(activeTab==='tab-admin' && currentUser.role==='admin'){ renderAdminList(); renderFieldLegend(); renderGSUrlDisplay(); }
+}
+
+function renderKPI(stats){
+  document.getElementById('kpi-active').textContent = stats.activeCount;
+  document.getElementById('kpi-turnover').textContent = stats.annualTurnover.toFixed(1)+'%';
+  document.getElementById('kpi-tenure').textContent = fmtYears(stats.avgTenureAll);
+  document.getElementById('kpi-age').textContent = stats.avgAge.toFixed(1)+' 歲';
+  document.getElementById('kpi-newhire').textContent = stats.newHiresThisMonth;
+  document.getElementById('kpi-bday').textContent = stats.thisMonthBirthdays.length;
+}
+
+/** 依目前範圍內在職員工，彙總各事業部人數（跨部門加總）。 */
+function divisionHeadcounts(activeList){
+  const departments = ORG_TREE.departments || DEPARTMENTS;
+  const divisions = ORG_TREE.divisions || DIVISIONS;
+  const deptToDiv = {};
+  departments.forEach(d=>{ deptToDiv[d.code] = d.divisionCode; });
+  const divName = {};
+  divisions.forEach(d=>{ divName[d.code] = d.name; });
+  const counts = {};
+  activeList.forEach(e=>{
+    const divCode = deptToDiv[e.deptCode];
+    if(!divCode) return;
+    counts[divCode] = (counts[divCode]||0) + 1;
+  });
+  return Object.keys(counts).map(code=>({code, name: divName[code] || code, headcount: counts[code]}));
+}
+
+/** 依帳號的管理部門代碼（scope），建立「事業部／部門代碼 → 負責主管」對照表，供組織圖顯示主管姓名職稱。 */
+function orgChartManagerMap(){
+  const map = {};
+  getAccounts().forEach(a=>{
+    if(a.role !== 'manager' || !Array.isArray(a.scope)) return;
+    a.scope.forEach(code=>{
+      if(code && code !== 'ALL' && !map[code]) map[code] = {name:a.name, title:a.title};
+    });
+  });
+  return map;
+}
+
+/** 純 CSS 畫的組織圖：根節點＋一排子節點（事業部／部門，名稱下方顯示負責主管姓名職稱，人數在第三行），可選再加第三層（例如總經理直屬部門）。
+ *  rootCode：若提供，會依此代碼查出對應主管並在根節點名稱下方顯示其姓名職稱；若職稱文字與根節點名稱相同（例如「總經理」根節點對到職稱也是「總經理」的人），
+ *  則只顯示姓名，避免重複顯示同樣的文字。
+ *  highlightCode：若提供，該代碼對應的方框會用淺粉紅色填滿，用來標示目前部門篩選選到的那個部門。 */
+function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode){
+  const el = document.getElementById('orgchart');
+  if(!el) return;
+  const mgrMap = orgChartManagerMap();
+  const boxContent = (n)=>{
+    const m = mgrMap[n.code];
+    const mgrHTML = m ? `<span class="oc-manager">${m.name}${m.title?(' '+m.title):''}</span>` : '';
+    return `${n.name}${mgrHTML}<span class="oc-count">${n.headcount} 人</span>`;
+  };
+  const boxClass = (n)=> 'oc-box' + (highlightCode && n.code === highlightCode ? ' oc-box-highlight' : '');
+  const rootMgr = rootCode ? mgrMap[rootCode] : null;
+  const rootMgrHTML = rootMgr ? `<span class="oc-manager">${rootMgr.name}${(rootMgr.title && rootMgr.title !== rootLabel) ? (' '+rootMgr.title) : ''}</span>` : '';
+  const childrenHTML = nodes.map(n=>`
+    <div class="oc-child">
+      <div class="${boxClass(n)}">${boxContent(n)}</div>
+    </div>`).join('');
+  let tier3HTML = '';
+  if(tier3 && tier3.length){
+    const t3HTML = tier3.map(n=>`
+      <div class="oc-child">
+        <div class="${boxClass(n)}">${boxContent(n)}</div>
+      </div>`).join('');
+    tier3HTML = `
+      <div class="oc-tier3-wrap">
+        <div class="oc-tier3-label">總經理直屬部門</div>
+        <div class="oc-children oc-tier3 ${tier3.length<=1?'oc-single':''}">${t3HTML}</div>
+      </div>
+      <div class="oc-tier3-connector"></div>
+      <div class="oc-bus-extend"></div>`;
+  }
+  el.innerHTML = `
+    <div class="oc-root">
+      <div class="oc-box">${rootLabel}${rootMgrHTML}<span class="oc-count">${rootCount} 人</span></div>
+      <div class="oc-root-stem"></div>
+    </div>
+    <div class="oc-children ${nodes.length<=1?'oc-single':''}">${childrenHTML}</div>
+    ${tier3HTML}
+  `;
+  // 讓最上層節點的方框寬高，與下方那一排（事業部／部門）方框一致：文字長短不同會讓瀏覽器算出的
+  // 自然寬度不同（例如「總經理」比「軟體暨服務 事業部」窄很多），故渲染後量測整排最大寬高，統一套用。
+  {
+    const rootBoxEl = el.querySelector('.oc-root .oc-box');
+    const tier2Boxes = [...el.querySelectorAll('.oc-children:not(.oc-tier3) > .oc-child .oc-box')];
+    if(rootBoxEl && tier2Boxes.length){
+      let maxW = rootBoxEl.getBoundingClientRect().width;
+      let maxH = rootBoxEl.getBoundingClientRect().height;
+      tier2Boxes.forEach(b=>{
+        const r = b.getBoundingClientRect();
+        maxW = Math.max(maxW, r.width);
+        maxH = Math.max(maxH, r.height);
+      });
+      [rootBoxEl, ...tier2Boxes].forEach(b=>{
+        b.style.boxSizing = 'border-box';
+        b.style.width = maxW + 'px';
+        b.style.height = maxH + 'px';
+        b.style.display = 'flex';
+        b.style.flexDirection = 'column';
+        b.style.alignItems = 'center';
+        b.style.justifyContent = 'center';
+      });
+    }
+  }
+  if(tier3 && tier3.length){
+    // 連接線／橫線延伸段的座標，須以「總經理直屬部門」文字實際置中位置、及事業部橫線
+    // 實際渲染高度為準（換行與否、文字寬度都會變動），故渲染後量測 DOM 再動態設定，
+    // 確保直線精準對齊文字正中央，並與總經理下方橫線的右延伸段確實銜接。
+    const orgRect = el.getBoundingClientRect();
+    const tier2Row = el.querySelector('.oc-children:not(.oc-tier3)');
+    const label = el.querySelector('.oc-tier3-label');
+    const connector = el.querySelector('.oc-tier3-connector');
+    const busExtend = el.querySelector('.oc-bus-extend');
+    if(tier2Row && label && connector && busExtend){
+      const tier2Rect = tier2Row.getBoundingClientRect();
+      const labelRect = label.getBoundingClientRect();
+      const busY = tier2Rect.top - orgRect.top;
+      const labelTop = labelRect.top - orgRect.top;
+      const labelCenterX = labelRect.left + labelRect.width/2 - orgRect.left;
+      const tier2BusRightX = (tier2Rect.right - orgRect.left) - tier2Rect.width*0.08;
+
+      connector.style.left = labelCenterX + 'px';
+      connector.style.top = busY + 'px';
+      connector.style.height = Math.max(0, labelTop - busY) + 'px';
+
+      const busLeft = Math.min(tier2BusRightX, labelCenterX);
+      const busWidth = Math.abs(labelCenterX - tier2BusRightX);
+      busExtend.style.left = busLeft + 'px';
+      busExtend.style.top = busY + 'px';
+      busExtend.style.width = busWidth + 'px';
+    }
+  }
+}
+
+function renderOverview(stats){
+  // 目前選在「全部事業部」且範圍內確實有多個事業部時，改以事業部彙總人數呈現；否則維持各部門明細。
+  const showDivisions = currentDivisionFilter === 'ALL' && currentScope().divisions.length > 1;
+  const titleEl = document.getElementById('dept-chart-title');
+  const subEl = document.getElementById('dept-chart-sub');
+  const orgSubEl = document.getElementById('orgchart-sub');
+  if(showDivisions){
+    const divSorted = divisionHeadcounts(stats.active).sort((a,b)=>b.headcount-a.headcount);
+    titleEl.textContent = '各事業部人數';
+    subEl.textContent = '在職員工，依人數排序（全部事業部彙總視角）';
+    barChart('c-dept', divSorted.map(d=>d.name), divSorted.map(d=>d.headcount), {horizontal:true, thick:26, showValues:true});
+    if(currentScope().level === 'company'){
+      // 全公司視角：組織圖最上層改為「總經理」，總經理室（3DA100）不再與其他事業部並列，
+      // 改將其下轄部門獨立呈現為第三層「總經理直屬部門」。
+      const GM_DIV_CODE = '3DA100';
+      const tier2 = divSorted.filter(d=>d.code !== GM_DIV_CODE);
+      const gmDeptCodes = new Set((ORG_TREE.departments||DEPARTMENTS).filter(d=>d.divisionCode===GM_DIV_CODE).map(d=>d.code));
+      const tier3 = stats.deptStats.filter(d=>gmDeptCodes.has(d.code)).sort((a,b)=>b.headcount-a.headcount);
+      orgSubEl.textContent = '總經理 → 各事業部／直屬部門';
+      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE);
+    } else {
+      orgSubEl.textContent = '責任範圍 → 各事業部';
+      renderOrgChart('責任範圍', stats.activeCount, divSorted);
+    }
+  } else {
+    const deptSorted = stats.deptStats.slice().sort((a,b)=>b.headcount-a.headcount);
+    titleEl.textContent = '各部門人數';
+    subEl.textContent = '在職員工，依人數排序';
+    barChart('c-dept', deptSorted.map(d=>d.name), deptSorted.map(d=>d.headcount), {horizontal:true, thick:22, showValues:true});
+    const divisions = ORG_TREE.divisions || DIVISIONS;
+    const divInfo = divisions.find(d=>d.code===currentDivisionFilter);
+    const rootLabel = divInfo ? divInfo.name : '事業部';
+    orgSubEl.textContent = rootLabel+' → 各部門';
+    // 組織圖固定呈現整個事業部（不受部門篩選影響）：若目前另外選了單一部門，改用忽略部門篩選的
+    // 統計資料重新計算，避免組織圖的事業部人數只算到被篩選的那一個部門。
+    let orgDeptSorted = deptSorted, orgActiveCount = stats.activeCount;
+    if(currentDeptFilter !== 'ALL'){
+      const orgStats = computeStats(divisionScopedEmployees(), new Date());
+      orgDeptSorted = orgStats.deptStats.slice().sort((a,b)=>b.headcount-a.headcount);
+      orgActiveCount = orgStats.activeCount;
+    }
+    renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined);
+  }
+}
+
+function renderComposition(stats, asOf){
+  const onClick = (chartId, fieldLabel, matcher) => (label) => {
+    toggleDrill('composition', chartId, fieldLabel, label, stats.active.filter(e=>matcher(e,label)), (freshStats)=>freshStats.active.filter(e=>matcher(e,label)));
+  };
+
+  const genderLabels = Object.keys(stats.genderCounts);
+  doughnutChart('c-gender', genderLabels, genderLabels.map(k=>stats.genderCounts[k]), CAT.slice(0,genderLabels.length),
+    {onClick: onClick('c-gender', '性別', (e,label)=>(e.gender||'未填寫')===label)});
+  doughnutChart('c-status', ['在職','近12個月離職'], [stats.activeCount, stats.resigned12.length], [PALETTE.good, PALETTE.critical],
+    {onClick: (label)=> toggleDrill('composition', 'c-status', '在職狀態', label, label==='在職' ? stats.active : stats.resigned12,
+      (freshStats)=> label==='在職' ? freshStats.active : freshStats.resigned12)});
+  const eduOrder = ['博士','碩士','大學','四技','二技','高中職','國中','未填寫'];
+  const eduLabels = eduOrder.filter(k=>stats.eduCounts[k]);
+  doughnutChart('c-edu', eduLabels, eduLabels.map(k=>stats.eduCounts[k]), CAT.slice(0,eduLabels.length),
+    {onClick: onClick('c-edu', '最高學歷', (e,label)=>(e.education||'未填寫')===label)});
+  const identityLabels = Object.keys(stats.identityCounts);
+  doughnutChart('c-identity', identityLabels, identityLabels.map(k=>stats.identityCounts[k]), CAT.slice(0,identityLabels.length),
+    {onClick: onClick('c-identity', '身份類別', (e,label)=>(e.identityCategory||'未填寫')===label)});
+  const ethnicLabels = Object.keys(stats.ethnicCounts);
+  doughnutChart('c-ethnic', ethnicLabels, ethnicLabels.map(k=>stats.ethnicCounts[k]), CAT.slice(0,ethnicLabels.length),
+    {onClick: onClick('c-ethnic', '族群身分', (e,label)=>(e.ethnic||'未填寫')===label)});
+  const jobLabels = Object.keys(stats.jobCatCounts).sort((a,b)=>stats.jobCatCounts[b]-stats.jobCatCounts[a]);
+  barChart('c-jobcat', jobLabels, jobLabels.map(k=>stats.jobCatCounts[k]),
+    {showValues:true, onClick: onClick('c-jobcat', '職種', (e,label)=>(e.jobCategory||'未填寫')===label)});
+  const locLabels = Object.keys(stats.workLocationCounts).sort((a,b)=>stats.workLocationCounts[b]-stats.workLocationCounts[a]);
+  barChart('c-worklocation', locLabels, locLabels.map(k=>stats.workLocationCounts[k]),
+    {showValues:true, onClick: onClick('c-worklocation', '工作地點', (e,label)=>(e.workLocation||'未填寫')===label)});
+  barChart('c-age', stats.ageBandCounts.map(a=>a.label), stats.ageBandCounts.map(a=>a.count),
+    {showValues:true, onClick: onClick('c-age', '年齡', (e,label)=>{
+      const b = AGE_BANDS.find(x=>x[0]===label); if(!b) return false;
+      const a = ageOn(e.birthday,asOf); return a>=b[1] && a<=b[2];
+    })});
+  barChart('c-tenure', stats.tenureBandCounts.map(a=>a.label), stats.tenureBandCounts.map(a=>a.count),
+    {showValues:true, onClick: onClick('c-tenure', '年資', (e,label)=>{
+      const b = TENURE_BANDS.find(x=>x[0]===label); if(!b) return false;
+      const t = tenureYears(e,asOf); return t>=b[1] && t<b[2];
+    })});
+  const gradeLabels = Object.keys(stats.gradeCounts).sort((a,b)=>Number(a)-Number(b));
+  barChart('c-grade', gradeLabels.map(g=>g+'職等'), gradeLabels.map(k=>stats.gradeCounts[k]),
+    {showValues:true, onClick: onClick('c-grade', '職等', (e,label)=>(String(e.grade)+'職等')===label)});
+
+  refreshActiveDrill('composition', stats);
+}
+
+function renderMovement(stats){
+  lineChart('c-year-trend', stats.yearTrend.map(y=>y.label), stats.yearTrend.map(y=>y.headcount), PALETTE.accent, {showValues:true});
+  lineChart('c-month-trend', stats.monthHeadcountTrend.map(m=>m.label), stats.monthHeadcountTrend.map(m=>m.headcount), PALETTE.blue, {showValues:true});
+  lineChart('c-turnover-trend', stats.months.map(m=>m.label), stats.months.map(m=>m.rate), PALETTE.serious, {percent:true, showValues:true});
+  groupedBarChart('c-hire-resign', stats.months.map(m=>m.label),
+    [{label:'到職',data:stats.months.map(m=>m.hires)},{label:'離職',data:stats.months.map(m=>m.resigns)}],
+    [PALETTE.good, PALETTE.critical], {showValues:true});
+
+  // 全部事業部視角時，「各部門年資與離職概況」改以事業部彙總資料呈現，欄位標題也隨之改為「事業部」。
+  const showDivisions = currentDivisionFilter === 'ALL' && currentScope().divisions.length > 1;
+  const rows = showDivisions ? stats.divisionStats : stats.deptStats;
+  document.getElementById('dept-summary-title').textContent = showDivisions ? '各事業部年資與離職概況' : '各部門年資與離職概況';
+  document.getElementById('dept-summary-colhead').textContent = showDivisions ? '事業部' : '部門';
+
+  const body = document.getElementById('dept-summary-body');
+  body.innerHTML = rows.map(d=>`
+    <tr>
+      <td>${d.name}</td>
+      <td>${d.headcount}</td>
+      <td>${fmtYears(d.avgTenure)}</td>
+      <td>${d.hired12}</td>
+      <td>${d.resigned12}</td>
+      <td>${d.turnoverRate.toFixed(1)}%</td>
+    </tr>`).join('') || `<tr><td colspan="6" class="table-empty">目前檢視範圍內無資料</td></tr>`;
+}
+
+function renderCare(stats, asOf){
+  const onClick = (chartId, fieldLabel, matcher) => (label) => {
+    toggleDrill('care', chartId, fieldLabel, label, stats.active.filter(e=>matcher(e,label)), (freshStats)=>freshStats.active.filter(e=>matcher(e,label)));
+  };
+
+  const bloodLabels = Object.keys(stats.bloodTypeCounts);
+  doughnutChart('c-bloodtype', bloodLabels, bloodLabels.map(k=>stats.bloodTypeCounts[k]), CAT.slice(0,bloodLabels.length),
+    {onClick: onClick('c-bloodtype', '血型', (e,label)=>(e.bloodType||'未填寫')===label)});
+  barChart('c-zodiac', stats.zodiacCounts.map(z=>z.label), stats.zodiacCounts.map(z=>z.count),
+    {showValues:true, noRotate:true, onClick: onClick('c-zodiac', '星座', (e,label)=>zodiacOf(e.birthday)===label)});
+  barChart('c-cnzodiac', stats.cnZodiacCounts.map(z=>z.label), stats.cnZodiacCounts.map(z=>z.count),
+    {showValues:true, noRotate:true, onClick: onClick('c-cnzodiac', '生肖', (e,label)=>chineseZodiacOf(e.birthday)===label)});
+  const curMonth = asOf.getMonth();
+  const bmonthColors = stats.birthMonthCounts.map((m,i)=> i===curMonth ? PALETTE.pink : PALETTE.accent);
+  barChart('c-bmonth', stats.birthMonthCounts.map(m=>m.label), stats.birthMonthCounts.map(m=>m.count),
+    {showValues:true, noRotate:true, color:bmonthColors, onClick: onClick('c-bmonth', '生日月份', (e,label)=>{
+      const idx = MONTH_LABELS.indexOf(label);
+      return fromISO(e.birthday).getMonth()===idx;
+    })});
+  document.getElementById('bday-month-badge').textContent = `本月壽星 ${stats.thisMonthBirthdays.length} 位`;
+
+  const listEl = document.getElementById('bday-list');
+  if(!stats.thisMonthBirthdays.length){
+    listEl.innerHTML = '';
+    listEl.parentElement.querySelector('.bday-empty')?.remove();
+    listEl.insertAdjacentHTML('afterend', '<div class="bday-empty">本月無壽星</div>');
+  } else {
+    listEl.parentElement.querySelector('.bday-empty')?.remove();
+    listEl.innerHTML = stats.thisMonthBirthdays.map(e=>{
+      const d = fromISO(e.birthday);
+      return `<div class="bday-card"><div class="bc-icon">🎂</div><div><div class="bc-name">${e.name}</div><div class="bc-meta">${e.deptName.split(' ').slice(1).join(' ')} · ${pad2(d.getMonth()+1)}/${pad2(d.getDate())} · ${zodiacOf(e.birthday)}</div></div></div>`;
+    }).join('');
+  }
+
+  refreshActiveDrill('care', stats);
+}
+
+/** 表格欄位定義：員工名單、圖表下鑽結果共用同一份欄位（不含星座／生肖）。get() 回傳可排序的原始值。 */
+const EMPLOYEE_COLUMNS = [
+  {key:'empId', label:'員工編號', get:e=>e.empId},
+  {key:'name', label:'姓名', get:e=>e.name},
+  {key:'gender', label:'性別', get:e=>e.gender},
+  {key:'deptName', label:'部門', get:e=>e.deptName},
+  {key:'position', label:'職位', get:e=>e.position},
+  {key:'grade', label:'職等', get:e=>Number(e.grade)||0},
+  {key:'jobCategory', label:'職種', get:e=>e.jobCategory},
+  {key:'age', label:'年齡', get:(e,asOf)=>ageOn(e.birthday,asOf)},
+  {key:'tenure', label:'年資', get:(e,asOf)=>tenureYears(e,asOf)},
+  {key:'status', label:'在職狀態', get:e=>e.employStatus}
+];
+
+/** 依欄位定義與排序狀態排序員工清單：數值欄位依大小排序，其餘依字串排序規則排序。 */
+function sortEmployeeList(list, columns, state, asOf){
+  if(!state.key) return list;
+  const col = columns.find(c=>c.key===state.key);
+  if(!col) return list;
+  return list.slice().sort((a,b)=>{
+    const va = col.get(a,asOf), vb = col.get(b,asOf);
+    if(typeof va === 'number' && typeof vb === 'number') return (va-vb)*state.dir;
+    return String(va).localeCompare(String(vb), 'zh-Hant') * state.dir;
+  });
+}
+/** 依欄位定義與目前排序狀態畫出表頭：點欄名可排序，再點一次同一欄反向排序。每個可篩選的欄位標題旁
+ *  固定顯示一個圖示（未排序時為 ⇅，目前排序中的欄位則顯示 ▲／▼ 標示方向），讓使用者一眼就看出哪些欄位可點選。 */
+function renderSortableHead(theadId, columns, tableKey, state){
+  const thead = document.getElementById(theadId);
+  if(!thead) return;
+  thead.innerHTML = '<tr>' + columns.map(c=>{
+    const active = state.key === c.key;
+    const icon = active ? (state.dir===1 ? '▲' : '▼') : '⇅';
+    return `<th class="sortable-th${active?' active':''}" onclick="toggleSort('${tableKey}','${c.key}')">${c.label} <span class="sort-icon">${icon}</span></th>`;
+  }).join('') + '</tr>';
+}
+/** 切換表格排序欄位：同一欄位再點一次反向排序，改點別的欄位則切換為該欄由小到大排序。 */
+function toggleSort(tableKey, colKey){
+  const state = tableKey==='directory' ? dirSort : drillSort[tableKey];
+  if(state.key===colKey) state.dir *= -1; else { state.key = colKey; state.dir = 1; }
+  if(tableKey==='directory'){ dirPage = 1; renderDirectoryPage(); }
+  else renderDrillBody(tableKey);
+}
+
+/** 單一員工的表格列 HTML（員工名單、圖表下鑽結果共用同一份欄位與格式）。 */
+function employeeRowHTML(e, asOf){
+  return `
+    <tr>
+      <td>${e.empId}</td>
+      <td>${e.name}</td>
+      <td>${e.gender}</td>
+      <td>${e.deptName}</td>
+      <td>${e.position}</td>
+      <td>${e.grade}</td>
+      <td>${e.jobCategory}</td>
+      <td>${ageOn(e.birthday,asOf)}</td>
+      <td>${fmtYears(tenureYears(e,asOf))}</td>
+      <td><span class="badge ${e.employStatus==='在職'?'pass':'fail'}">${e.employStatus}</span></td>
+    </tr>`;
+}
+
+/* ---------- 圖表下鑽：點選「人力組成」／「員工關懷」頁面的圖表指標，於頁面下方顯示符合條件的員工資料 ---------- */
+const DRILL_IDS = {
+  composition: {section:'comp-drill', body:'comp-drill-body', title:'comp-drill-title', count:'comp-drill-count', thead:'comp-drill-thead'},
+  care: {section:'care-drill', body:'care-drill-body', title:'care-drill-title', count:'care-drill-count', thead:'care-drill-thead'}
+};
+let drillState = { composition:null, care:null };
+let drillListRaw = { composition:[], care:[] };
+let drillSort = { composition:{key:null, dir:1}, care:{key:null, dir:1} };
+function showDrill(page, fieldLabel, valueLabel, list, scrollIntoView){
+  const ids = DRILL_IDS[page];
+  drillListRaw[page] = list;
+  document.getElementById(ids.title).textContent = `篩選結果：${fieldLabel} = ${valueLabel}`;
+  renderDrillBody(page);
+  const section = document.getElementById(ids.section);
+  section.style.display = '';
+  if(scrollIntoView) section.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/** 依目前排序狀態，重新畫出下鑽結果表格內容與表頭（點表頭排序、或篩選範圍變動重新計算時都會呼叫）。 */
+function renderDrillBody(page){
+  const ids = DRILL_IDS[page];
+  const asOf = new Date();
+  const state = drillSort[page];
+  const list = drillListRaw[page];
+  const sorted = state.key ? sortEmployeeList(list, EMPLOYEE_COLUMNS, state, asOf) : list.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
+  document.getElementById(ids.count).textContent = `共 ${sorted.length} 筆`;
+  document.getElementById(ids.body).innerHTML = sorted.map(e=>employeeRowHTML(e,asOf)).join('') || `<tr><td colspan="10" class="table-empty">查無符合資料</td></tr>`;
+  renderSortableHead(ids.thead, EMPLOYEE_COLUMNS, page, state);
+}
+function clearDrill(page){
+  drillState[page] = null;
+  document.getElementById(DRILL_IDS[page].section).style.display = 'none';
+}
+/**
+ * 點選同一個指標值會取消篩選（收合下鑽區塊），點選不同指標值則切換為新的篩選條件。
+ * recompute(stats) 會存起來，供 refreshActiveDrill() 在事業部／部門篩選改變、圖表重新渲染時，
+ * 用最新的統計資料重新算出下鑽結果，避免篩選條件切換後下鑽表格顯示的還是舊範圍的員工資料。
+ */
+function toggleDrill(page, chartId, fieldLabel, valueLabel, list, recompute){
+  const cur = drillState[page];
+  if(cur && cur.chartId===chartId && cur.label===valueLabel){
+    clearDrill(page);
+    return;
+  }
+  drillState[page] = {chartId, label:valueLabel, fieldLabel, recompute};
+  showDrill(page, fieldLabel, valueLabel, list, true);
+}
+/** 頁面重新渲染（例如切換事業部／部門篩選）時，若該頁目前有下鑽中的篩選，依最新統計資料重新計算並更新表格。 */
+function refreshActiveDrill(page, stats){
+  const cur = drillState[page];
+  if(!cur || !cur.recompute) return;
+  showDrill(page, cur.fieldLabel, cur.label, cur.recompute(stats), false);
+}
+
+/* ---------- 員工名單 ---------- */
+let dirPage = 1;
+const DIR_PAGE_SIZE = 15;
+let dirSort = {key:null, dir:1};
+function renderDirectory(){
+  dirPage = 1;
+  renderDirectoryPage();
+}
+function renderDirectoryPage(){
+  const asOf = new Date();
+  const q = (document.getElementById('dir-search')?.value||'').trim().toLowerCase();
+  let list = filteredEmployees();
+  if(q) list = list.filter(e=>e.name.toLowerCase().includes(q) || e.empId.toLowerCase().includes(q));
+  list = dirSort.key ? sortEmployeeList(list, EMPLOYEE_COLUMNS, dirSort, asOf) : list.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
+
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total/DIR_PAGE_SIZE));
+  if(dirPage>totalPages) dirPage=totalPages;
+  const start = (dirPage-1)*DIR_PAGE_SIZE;
+  const pageItems = list.slice(start, start+DIR_PAGE_SIZE);
+
+  document.getElementById('dir-body').innerHTML = pageItems.map(e=>employeeRowHTML(e,asOf)).join('') || `<tr><td colspan="10" class="table-empty">查無符合資料</td></tr>`;
+  renderSortableHead('dir-thead', EMPLOYEE_COLUMNS, 'directory', dirSort);
+
+  document.getElementById('dir-count').textContent = `共 ${total} 筆`;
+  const pager = document.getElementById('dir-pager');
+  let btns = `<button class="pg-btn" ${dirPage<=1?'disabled':''} onclick="dirGoto(${dirPage-1})">上一頁</button>`;
+  for(let p=1;p<=totalPages;p++){ btns += `<button class="pg-btn ${p===dirPage?'active':''}" onclick="dirGoto(${p})">${p}</button>`; }
+  btns += `<button class="pg-btn" ${dirPage>=totalPages?'disabled':''} onclick="dirGoto(${dirPage+1})">下一頁</button>`;
+  pager.innerHTML = btns;
+}
+function dirGoto(p){ dirPage=p; renderDirectoryPage(); }
+
+/* ══════════════════════════════════════════════════════════════
+   報表下載（員工名單／圖表下鑽篩選結果 共用，兩個入口都有）：
+   將目前的員工清單匯出成 Excel 或 Word。
+   ══════════════════════════════════════════════════════════════ */
+function toggleReportMenu(btn){
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.classList.contains('open');
+  closeAllReportMenus();
+  if(!isOpen) menu.classList.add('open');
+}
+function closeAllReportMenus(){
+  document.querySelectorAll('.dl-dropdown-menu.open').forEach(m=>m.classList.remove('open'));
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.dl-dropdown-wrap')) closeAllReportMenus();
+});
+
+/** 依來源（員工名單 / 人力組成篩選結果 / 員工關懷篩選結果）取得目前實際顯示中的員工清單、基準日與標題。 */
+function getReportData(source){
+  const asOf = new Date();
+  if(source === 'directory'){
+    const q = (document.getElementById('dir-search')?.value || '').trim().toLowerCase();
+    let list = filteredEmployees();
+    if(q) list = list.filter(e=>e.name.toLowerCase().includes(q) || e.empId.toLowerCase().includes(q));
+    list = dirSort.key ? sortEmployeeList(list, EMPLOYEE_COLUMNS, dirSort, asOf) : list.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
+    return { list, asOf, title:'員工清單' };
+  }
+  const raw = drillListRaw[source] || [];
+  const state = drillSort[source];
+  const list = state.key ? sortEmployeeList(raw, EMPLOYEE_COLUMNS, state, asOf) : raw.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
+  const cur = drillState[source];
+  const title = cur ? `${cur.fieldLabel}_${cur.label}` : '篩選結果';
+  return { list, asOf, title };
+}
+
+/** 報表最上方的說明列：目前檢視的事業部／部門範圍、篩選條件（搜尋關鍵字或圖表下鑽條件）、資料日期。 */
+function getReportMeta(source, asOf){
+  const divisions = ORG_TREE.divisions || DIVISIONS;
+  const departments = ORG_TREE.departments || DEPARTMENTS;
+  const divName = currentDivisionFilter === 'ALL' ? '全部事業部' : ((divisions.find(d=>d.code===currentDivisionFilter)||{}).name || currentDivisionFilter);
+  const deptName = currentDeptFilter === 'ALL' ? '全部部門' : ((departments.find(d=>d.code===currentDeptFilter)||{}).name || currentDeptFilter);
+  let filterCondition = '無';
+  if(source === 'directory'){
+    const q = (document.getElementById('dir-search')?.value || '').trim();
+    if(q) filterCondition = `搜尋：${q}`;
+  } else {
+    const cur = drillState[source];
+    if(cur) filterCondition = `${cur.fieldLabel} = ${cur.label}`;
+  }
+  const dateStr = `${asOf.getFullYear()}/${pad2(asOf.getMonth()+1)}/${pad2(asOf.getDate())}`;
+  return { divName, deptName, filterCondition, dateStr };
+}
+
+/**
+ * 以 HTML 表格偽裝成 .xls 匯出：SheetJS 免費版寫入 xlsx 時不會保留儲存格樣式（實測字型／底色／置中
+ * 設定寫入後讀回都消失，是收費版才支援的功能），改用 Excel 可直接開啟辨識的 HTML 表格格式，
+ * 才能可靠地套用指定的字型、字級、置中對齊與表頭底色。
+ */
+function exportEmployeesToExcel(list, asOf, filename, meta){
+  const cellStyle = "font-family:'Microsoft JhengHei',sans-serif;font-size:12pt;text-align:center;border:1px solid #ccc;padding:4px 8px";
+  const headStyle = cellStyle + ";background:#FFE0B2;font-weight:bold";
+  const metaStyle = "font-family:'Microsoft JhengHei',sans-serif;font-size:12pt;text-align:left;font-weight:bold;padding:4px 8px";
+  const metaText = `事業部：${meta.divName}　部門：${meta.deptName}　篩選條件：${meta.filterCondition}　資料日期：${meta.dateStr}`;
+  const metaRow = `<tr><td colspan="${EMPLOYEE_COLUMNS.length}" style="${metaStyle}">${metaText}</td></tr>`;
+  const headerRow = `<tr>${EMPLOYEE_COLUMNS.map(c=>`<th style="${headStyle}">${c.label}</th>`).join('')}</tr>`;
+  const bodyRows = list.map(e=>`<tr>${EMPLOYEE_COLUMNS.map(c=>{
+    const v = c.get(e, asOf);
+    const text = c.key === 'tenure' ? fmtYears(v) : v;
+    return `<td style="${cellStyle}">${text}</td>`;
+  }).join('')}</tr>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><table>${metaRow}${headerRow}${bodyRows}</table></body></html>`;
+  downloadBlob(new Blob(['﻿'+html], {type:'application/vnd.ms-excel'}), filename);
+}
+
+async function exportEmployeesToWord(list, asOf, filename, title, meta){
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType } = window.docx;
+  const FONT = 'Microsoft JhengHei';
+  const SIZE = 24; // docx.js 以「半點」為單位，24 = 12pt
+
+  const cellPara = (text, bold) => new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: [ new TextRun({ text:String(text), font:FONT, size:SIZE, bold:!!bold }) ]
+  });
+
+  const headerRow = new TableRow({ children: EMPLOYEE_COLUMNS.map(c=>
+    new TableCell({ shading:{type:ShadingType.CLEAR, fill:'FFE0B2', color:'auto'}, children:[cellPara(c.label, true)] })
+  )});
+  const dataRows = list.map(e => new TableRow({ children: EMPLOYEE_COLUMNS.map(c=>{
+    const v = c.get(e, asOf);
+    const text = c.key === 'tenure' ? fmtYears(v) : v;
+    return new TableCell({ children:[cellPara(text)] });
+  })}));
+  const table = new Table({ rows:[headerRow, ...dataRows], width:{size:100, type:WidthType.PERCENTAGE} });
+
+  const metaText = `事業部：${meta.divName}　部門：${meta.deptName}　篩選條件：${meta.filterCondition}　資料日期：${meta.dateStr}`;
+  const doc = new Document({ sections:[{ children:[
+    new Paragraph({ children:[ new TextRun({text:title, font:FONT, size:32, bold:true}) ] }),
+    new Paragraph({ children:[ new TextRun({text:metaText, font:FONT, size:SIZE, bold:true}) ] }),
+    new Paragraph({ children:[ new TextRun({text:`共 ${list.length} 筆`, font:FONT, size:SIZE}) ] }),
+    table
+  ] }] });
+  downloadBlob(await Packer.toBlob(doc), filename);
+}
+
+async function downloadReport(source, format){
+  closeAllReportMenus();
+  const { list, asOf, title } = getReportData(source);
+  if(!list.length){ alert('目前沒有資料可下載'); return; }
+  const meta = getReportMeta(source, asOf);
+  const ts = `${asOf.getFullYear()}${pad2(asOf.getMonth()+1)}${pad2(asOf.getDate())}`;
+  const filename = `${title}_${ts}`;
+  if(format === 'xlsx') exportEmployeesToExcel(list, asOf, `${filename}.xls`, meta);
+  else await exportEmployeesToWord(list, asOf, `${filename}.docx`, title, meta);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   圖表下載（僅人資後台）：勾選各頁面圖表／資料表，匯出成 PDF／Word／PPTX。
+   canvas 圖表用 Chart.js 內建 toBase64Image() 匯出；非 canvas 的區塊（KPI卡片、組織圖、
+   部門統計表）用 html2canvas 擷取畫面截圖。由於圖表只有在該分頁被渲染時畫布才有正確尺寸，
+   下載時會依序切到每個需要的分頁、觸發渲染、擷取圖片後，最後再切回原本所在的分頁。
+   ══════════════════════════════════════════════════════════════ */
+const CHART_CATALOG = {
+  overview: { tabId:'tab-overview', render:(stats,asOf)=>renderOverview(stats), items:{
+    kpi:       {label:'KPI 總覽卡片', dom:'.kpi-grid'},
+    orgchart:  {label:'組織圖', dom:'#orgchart'},
+    deptchart: {label:'各部門／各事業部人數', canvas:'c-dept'}
+  }},
+  composition: { tabId:'tab-composition', render:(stats,asOf)=>renderComposition(stats,asOf), items:{
+    'c-gender':      {label:'性別比例', canvas:'c-gender'},
+    'c-status':      {label:'在職狀態分布', canvas:'c-status'},
+    'c-edu':         {label:'最高學歷', canvas:'c-edu'},
+    'c-identity':    {label:'身份類別', canvas:'c-identity'},
+    'c-ethnic':      {label:'族群身分', canvas:'c-ethnic'},
+    'c-jobcat':      {label:'職種分布', canvas:'c-jobcat'},
+    'c-worklocation':{label:'工作地點', canvas:'c-worklocation'},
+    'c-age':         {label:'年齡分布', canvas:'c-age'},
+    'c-tenure':      {label:'年資分布', canvas:'c-tenure'},
+    'c-grade':       {label:'職等分布', canvas:'c-grade'}
+  }},
+  movement: { tabId:'tab-movement', render:(stats,asOf)=>renderMovement(stats), items:{
+    'c-year-trend':    {label:'年度人力趨勢', canvas:'c-year-trend'},
+    'c-month-trend':   {label:'月份人力趨勢', canvas:'c-month-trend'},
+    'c-turnover-trend':{label:'月別離職率趨勢', canvas:'c-turnover-trend'},
+    'c-hire-resign':   {label:'每月到職／離職人數', canvas:'c-hire-resign'},
+    deptsummary:       {label:'各部門／事業部年資與離職概況', dom:'.dept-table-wrap'}
+  }},
+  care: { tabId:'tab-care', render:(stats,asOf)=>renderCare(stats,asOf), items:{
+    'c-bloodtype':{label:'血型', canvas:'c-bloodtype'},
+    'c-zodiac':   {label:'星座分布', canvas:'c-zodiac'},
+    'c-cnzodiac': {label:'生肖分布', canvas:'c-cnzodiac'},
+    'c-bmonth':   {label:'生日月份分布', canvas:'c-bmonth'}
+  }}
+};
+
+function getSelectedChartItems(){
+  return [...document.querySelectorAll('#tab-chartdownload input[type=checkbox]:checked')].map(cb=>{
+    const [cat, key] = cb.value.split(':');
+    return Object.assign({cat, key}, CHART_CATALOG[cat].items[key]);
+  });
+}
+
+/** 依序切到每個需要的分頁並渲染，擷取完成後切回目前分頁，回傳 [{label, dataUrl, width, height}]。 */
+async function captureChartImages(items){
+  const asOf = new Date();
+  const stats = computeStats(filteredEmployees(), asOf);
+  const originalTab = document.querySelector('.tab-content.active').id;
+  const byCat = {};
+  items.forEach(it=>{ (byCat[it.cat] = byCat[it.cat] || []).push(it); });
+
+  const results = [];
+  for(const cat of Object.keys(byCat)){
+    const catDef = CHART_CATALOG[cat];
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.tab===catDef.tabId));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id===catDef.tabId));
+    catDef.render(stats, asOf);
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+    for(const it of byCat[cat]){
+      let dataUrl, width, height;
+      if(it.canvas){
+        const chart = Chart.getChart(it.canvas);
+        if(!chart) continue;
+        dataUrl = chart.toBase64Image('image/png', 1);
+        width = chart.width; height = chart.height;
+      } else if(it.dom){
+        const el = document.querySelector(it.dom);
+        if(!el) continue;
+        const canvas = await html2canvas(el, {backgroundColor:'#ffffff', scale:2});
+        dataUrl = canvas.toDataURL('image/png');
+        width = canvas.width; height = canvas.height;
+      }
+      if(dataUrl) results.push({label:it.label, dataUrl, width, height});
+    }
+  }
+
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.tab===originalTab));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id===originalTab));
+  renderAll();
+  return results;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function dataURLToUint8Array(dataUrl){
+  const binary = atob(dataUrl.split(',')[1]);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function exportImagesToPDF(images, filename){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 36;
+  images.forEach((img, i)=>{
+    if(i>0) doc.addPage();
+    doc.setFontSize(14);
+    doc.text(img.label, margin, margin);
+    const maxW = pageW - margin*2;
+    const maxH = pageH - margin*2 - 30;
+    const ratio = Math.min(maxW/img.width, maxH/img.height);
+    doc.addImage(img.dataUrl, 'PNG', margin, margin+20, img.width*ratio, img.height*ratio);
+  });
+  doc.save(filename);
+}
+
+async function exportImagesToDocx(images, filename){
+  const { Document, Packer, Paragraph, ImageRun, HeadingLevel } = window.docx;
+  const children = [];
+  images.forEach(img=>{
+    const ratio = Math.min(560/img.width, 1);
+    children.push(new Paragraph({text: img.label, heading: HeadingLevel.HEADING_2}));
+    children.push(new Paragraph({ children:[ new ImageRun({
+      data: dataURLToUint8Array(img.dataUrl),
+      transformation:{width: Math.round(img.width*ratio), height: Math.round(img.height*ratio)}
+    }) ] }));
+  });
+  const doc = new Document({ sections:[{ children }] });
+  downloadBlob(await Packer.toBlob(doc), filename);
+}
+
+function exportImagesToPptx(images, filename){
+  const pptx = new PptxGenJS();
+  images.forEach(img=>{
+    const slide = pptx.addSlide();
+    slide.addText(img.label, {x:0.3, y:0.2, w:9, h:0.5, fontSize:20, bold:true});
+    const maxW = 9, maxH = 4.6, wIn = img.width/96, hIn = img.height/96;
+    const ratio = Math.min(maxW/wIn, maxH/hIn);
+    const w = wIn*ratio, h = hIn*ratio;
+    slide.addImage({data:img.dataUrl, x:(10-w)/2, y:0.9, w, h});
+  });
+  pptx.writeFile({fileName:filename});
+}
+
+async function downloadSelectedCharts(){
+  const statusEl = document.getElementById('cd-status');
+  const items = getSelectedChartItems();
+  if(!items.length){ statusEl.innerHTML = '<span style="color:var(--red)">請至少勾選一個圖表</span>'; return; }
+  const format = document.querySelector('input[name="cd-format"]:checked').value;
+  statusEl.innerHTML = '<span style="color:var(--ink3)">產生檔案中…</span>';
+  try{
+    const images = await captureChartImages(items);
+    const ts = `${new Date().getFullYear()}${pad2(new Date().getMonth()+1)}${pad2(new Date().getDate())}`;
+    if(format==='pdf') exportImagesToPDF(images, `圖表下載_${ts}.pdf`);
+    else if(format==='docx') await exportImagesToDocx(images, `圖表下載_${ts}.docx`);
+    else exportImagesToPptx(images, `圖表下載_${ts}.pptx`);
+    statusEl.innerHTML = `<span style="color:var(--green)">已下載（共 ${images.length} 個項目）</span>`;
+  }catch(err){
+    statusEl.innerHTML = `<span style="color:var(--red)">下載失敗：${err.message}</span>`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   系統管理：帳號 / 欄位範本 / CSV 匯入
+   ══════════════════════════════════════════════════════════════ */
+function renderAdminList(){
+  const list = getAccounts();
+  document.getElementById('admin-list').innerHTML = list.map(a=>{
+    const scopeLabel = a.scope.includes('ALL') ? '全公司' : a.scope.map(c=>{
+      const div = (ORG_TREE.divisions||DIVISIONS).find(d=>d.code===c);
+      if(div) return div.name+'（事業部）';
+      const dept = (ORG_TREE.departments||DEPARTMENTS).find(d=>d.code===c);
+      return dept ? dept.name : c;
+    }).join('、');
+    const metaExtra = a.role==='admin'
+      ? (a.email ? `　｜　Email：${a.email}` : '')
+      : `　｜　${a.dept||'—'} ${a.title||''}`.trim();
+    return `
+    <div class="admin-row">
+      <div class="admin-av">${a.name.slice(-2,-1)||a.name.slice(0,1)}</div>
+      <div class="admin-info">
+        <div class="admin-name">${a.name} <span class="role-badge">${a.role==='admin'?'人資管理員':'部門主管'}</span></div>
+        <div class="admin-meta">${a.role==='admin'?'帳號':'員工編號'}：${a.username}　｜　可視範圍：${scopeLabel}${metaExtra}</div>
+      </div>
+      <div class="admin-actions">
+        <button class="btn-secondary btn-sm" onclick="openAccountModal('${a.id}')">編輯</button>
+        <button class="btn-danger btn-sm" onclick="deleteAccount('${a.id}')">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAccountModal(id){
+  document.getElementById('acc-id').value = id||'';
+  document.getElementById('acc-err').style.display='none';
+  const divisions = ORG_TREE.divisions || DIVISIONS;
+  const departments = ORG_TREE.departments || DEPARTMENTS;
+  document.getElementById('acc-scope-list').innerHTML = divisions.map(div=>{
+    const depts = departments.filter(d=>d.divisionCode===div.code);
+    return `<label style="font-weight:700"><input type="checkbox" value="${div.code}" class="acc-scope-cb acc-scope-div"> ${div.name}（整個事業部）</label>` +
+      depts.map(d=>`<label style="padding-left:1.4rem"><input type="checkbox" value="${d.code}" class="acc-scope-cb"> ${d.name}</label>`).join('');
+  }).join('');
+
+  if(id){
+    const acc = getAccounts().find(a=>a.id===id);
+    document.getElementById('modal-account-title').textContent = '編輯帳號';
+    document.getElementById('acc-name').value = acc.name;
+    document.getElementById('acc-email').value = acc.email || '';
+    document.getElementById('acc-dept').value = acc.dept || '';
+    document.getElementById('acc-title').value = acc.title || '';
+    document.getElementById('acc-username').value = acc.username;
+    document.getElementById('acc-pwd').value = '';
+    document.getElementById('acc-pwd-label').innerHTML = '新密碼 <span style="color:var(--ink3);font-weight:400">（不修改請留空）</span>';
+    document.getElementById('acc-role').value = acc.role;
+    document.querySelectorAll('.acc-scope-cb').forEach(cb=>{ cb.checked = acc.scope.includes(cb.value); });
+  } else {
+    document.getElementById('modal-account-title').textContent = '新增帳號';
+    document.getElementById('acc-name').value = '';
+    document.getElementById('acc-email').value = '';
+    document.getElementById('acc-dept').value = '';
+    document.getElementById('acc-title').value = '';
+    document.getElementById('acc-username').value = '';
+    document.getElementById('acc-pwd').value = '';
+    document.getElementById('acc-pwd-label').innerHTML = '密碼 <span style="color:var(--red)">*</span>';
+    document.getElementById('acc-role').value = 'manager';
+  }
+  toggleScopeUI();
+  document.getElementById('modal-account').classList.add('open');
+}
+function closeAccountModal(){ document.getElementById('modal-account').classList.remove('open'); }
+function toggleScopeUI(){
+  const isAdmin = document.getElementById('acc-role').value==='admin';
+  document.getElementById('acc-scope-wrap').style.display = isAdmin ? 'none' : '';
+  document.getElementById('acc-email-wrap').style.display = isAdmin ? '' : 'none';
+  document.getElementById('acc-dept-wrap').style.display = isAdmin ? 'none' : '';
+  document.getElementById('acc-title-wrap').style.display = isAdmin ? 'none' : '';
+
+  // 主管的登入帳號＝員工編號，既有主管帳號（編輯模式）不可修改，僅新增時可填入；人資帳號則不受限制。
+  const isEdit = !!document.getElementById('acc-id').value;
+  const usernameInput = document.getElementById('acc-username');
+  const usernameLabel = document.getElementById('acc-username-label');
+  const usernameHint = document.getElementById('acc-username-hint');
+  if(isAdmin){
+    usernameLabel.innerHTML = '帳號 <span style="color:var(--red)">*</span>';
+    usernameInput.placeholder = '請輸入登入帳號';
+    usernameInput.disabled = false;
+    usernameHint.textContent = '';
+  } else {
+    usernameLabel.innerHTML = '員工編號 <span style="color:var(--red)">*</span>';
+    usernameInput.placeholder = '請輸入員工編號';
+    usernameInput.disabled = isEdit;
+    usernameHint.textContent = isEdit ? '員工編號為登入帳號，建立後不可修改' : '';
+  }
+}
+function saveAccount(){
+  const id = document.getElementById('acc-id').value;
+  const name = document.getElementById('acc-name').value.trim();
+  const email = document.getElementById('acc-email').value.trim();
+  const dept = document.getElementById('acc-dept').value.trim();
+  const title = document.getElementById('acc-title').value.trim();
+  const username = document.getElementById('acc-username').value.trim();
+  const pwd = document.getElementById('acc-pwd').value;
+  const role = document.getElementById('acc-role').value;
+  const scope = role==='admin' ? ['ALL'] : Array.from(document.querySelectorAll('.acc-scope-cb:checked')).map(cb=>cb.value);
+  const errEl = document.getElementById('acc-err');
+
+  if(!name || !username){ errEl.textContent='姓名與帳號為必填'; errEl.style.display='block'; return; }
+  if(!id && !pwd){ errEl.textContent='新增帳號時密碼為必填'; errEl.style.display='block'; return; }
+  if(role==='manager' && scope.length===0){ errEl.textContent='部門主管請至少勾選一個管理部門代碼'; errEl.style.display='block'; return; }
+
+  const list = getAccounts();
+  const dup = list.find(a=>a.id!==id && String(a.username).toLowerCase()===String(username).toLowerCase());
+  if(dup){ errEl.textContent='此帳號已存在，請使用其他帳號'; errEl.style.display='block'; return; }
+
+  const extra = role==='admin' ? {email} : {dept, title};
+  const applyLocal = (savedId)=>{
+    if(id){
+      const idx = list.findIndex(a=>a.id===id);
+      list[idx] = Object.assign({}, list[idx], {name, username, role, scope}, extra, pwd?{password:pwd}:{});
+    } else {
+      list.push(Object.assign({id:savedId||Date.now().toString(), name, username, role, scope, password:pwd}, extra));
+    }
+    setAccounts(list);
+    closeAccountModal();
+    renderAdminList();
+  };
+
+  if(GS_URL){
+    const payload = Object.assign(
+      id ? {action:'updateAccount', id, name, username, role, scope} : {action:'addAccount', name, username, role, scope, password:pwd},
+      extra,
+      (id && pwd) ? {password:pwd} : {}
+    );
+    gsPost(payload).then(d=>{
+      if(!d.ok){ errEl.textContent = d.error || '儲存失敗，請確認試算表設定'; errEl.style.display='block'; return; }
+      applyLocal(d.id);
+    }).catch(()=>{ errEl.textContent='連線失敗，已改儲存於本機'; errEl.style.display='block'; applyLocal(); });
+  } else {
+    applyLocal();
+  }
+}
+function deleteAccount(id){
+  if(id==='1'){ alert('無法刪除預設人資管理員帳號'); return; }
+  if(!confirm('確定要刪除此帳號嗎？')) return;
+  const applyLocal = ()=>{ setAccounts(getAccounts().filter(a=>a.id!==id)); renderAdminList(); };
+  if(GS_URL){
+    gsPost({action:'deleteAccount', id}).then(d=>{
+      if(!d.ok){ alert(d.error || '刪除失敗'); return; }
+      applyLocal();
+    }).catch(()=>applyLocal());
+  } else {
+    applyLocal();
+  }
+}
+
+/* ---------- 欄位範本 / CSV 匯入 ---------- */
+const ALL_FIELDS = [{"idx": 1, "label": "#", "required": false}, {"idx": 2, "label": "員工編號", "required": true}, {"idx": 3, "label": "姓名", "required": true}, {"idx": 4, "label": "英文姓名", "required": true}, {"idx": 5, "label": "別名", "required": false}, {"idx": 6, "label": "國籍", "required": true}, {"idx": 7, "label": "出生地", "required": false}, {"idx": 8, "label": "身分證號", "required": false}, {"idx": 9, "label": "性別", "required": true}, {"idx": 10, "label": "生日", "required": true}, {"idx": 11, "label": "年齡", "required": false}, {"idx": 12, "label": "生肖", "required": false}, {"idx": 13, "label": "星座", "required": false}, {"idx": 14, "label": "血型", "required": true}, {"idx": 15, "label": "婚姻狀況", "required": true}, {"idx": 16, "label": "兵役狀況", "required": false}, {"idx": 17, "label": "退伍日期", "required": false}, {"idx": 18, "label": "身高", "required": false}, {"idx": 19, "label": "體重", "required": false}, {"idx": 20, "label": "族群身分", "required": true}, {"idx": 21, "label": "有無前科", "required": false}, {"idx": 22, "label": "就職來源代碼", "required": false}, {"idx": 23, "label": "就職來源名稱", "required": false}, {"idx": 24, "label": "障礙等級(1)", "required": false}, {"idx": 25, "label": "障礙類別(1)", "required": false}, {"idx": 26, "label": "障礙等級(2)", "required": false}, {"idx": 27, "label": "障礙類別(2)", "required": false}, {"idx": 28, "label": "障礙等級(3)", "required": false}, {"idx": 29, "label": "障礙類別(3)", "required": false}, {"idx": 30, "label": "個人資料-備註", "required": false}, {"idx": 31, "label": "外僑統一證號", "required": false}, {"idx": 32, "label": "仲介單位代碼", "required": false}, {"idx": 33, "label": "仲介單位名稱", "required": false}, {"idx": 34, "label": "護照號碼", "required": false}, {"idx": 35, "label": "護照姓名", "required": false}, {"idx": 36, "label": "最近入境日期", "required": false}, {"idx": 37, "label": "最近出境日期", "required": false}, {"idx": 38, "label": "最近居留證到期日", "required": false}, {"idx": 39, "label": "被扶養人 / 配偶計入免稅額人數", "required": false}, {"idx": 40, "label": "健眷加保人數", "required": false}, {"idx": 41, "label": "最高學歷", "required": true}, {"idx": 42, "label": "最高學歷-學校", "required": false}, {"idx": 43, "label": "最高學歷-科系", "required": false}, {"idx": 44, "label": "最高學歷-科系類別", "required": false}, {"idx": 45, "label": "最新契約種類代碼", "required": false}, {"idx": 46, "label": "最新契約種類名稱", "required": false}, {"idx": 47, "label": "最新契約詳細名稱", "required": false}, {"idx": 48, "label": "最新契約開始日期", "required": false}, {"idx": 49, "label": "最新契約結束日期", "required": false}, {"idx": 50, "label": "最新契約狀態", "required": false}, {"idx": 51, "label": "公司電話", "required": false}, {"idx": 52, "label": "分機", "required": false}, {"idx": 53, "label": "住家電話", "required": false}, {"idx": 54, "label": "戶籍電話", "required": false}, {"idx": 55, "label": "行動電話", "required": false}, {"idx": 56, "label": "公司 E-mail", "required": false}, {"idx": 57, "label": "個人 E-mail", "required": false}, {"idx": 58, "label": "戶籍地區", "required": true}, {"idx": 59, "label": "戶籍地址", "required": false}, {"idx": 60, "label": "通訊地區", "required": true}, {"idx": 61, "label": "通訊地址", "required": false}, {"idx": 62, "label": "國外地址", "required": false}, {"idx": 63, "label": "社群帳號 ( 1 )", "required": false}, {"idx": 64, "label": "社群帳號 ( 2 )", "required": false}, {"idx": 65, "label": "聯絡資訊-備註", "required": false}, {"idx": 66, "label": "緊急聯絡人(1)-姓名", "required": false}, {"idx": 67, "label": "緊急聯絡人(1)-關係", "required": false}, {"idx": 68, "label": "緊急聯絡人(1)-電話", "required": false}, {"idx": 69, "label": "緊急聯絡人(1)-行動電話", "required": false}, {"idx": 70, "label": "緊急聯絡人(2)-姓名", "required": false}, {"idx": 71, "label": "緊急聯絡人(2)-關係", "required": false}, {"idx": 72, "label": "緊急聯絡人(2)-電話", "required": false}, {"idx": 73, "label": "緊急聯絡人(2)-行動電話", "required": false}, {"idx": 74, "label": "扣繳單位名稱", "required": false}, {"idx": 75, "label": "統一編號", "required": false}, {"idx": 76, "label": "部門代碼", "required": true}, {"idx": 77, "label": "部門名稱", "required": true}, {"idx": 78, "label": "組織類別(2) 部門代碼", "required": false}, {"idx": 79, "label": "組織類別(2) 部門名稱", "required": false}, {"idx": 80, "label": "組織類別(3) 部門代碼", "required": false}, {"idx": 81, "label": "組織類別(3) 部門名稱", "required": false}, {"idx": 82, "label": "組織類別(4) 部門代碼", "required": false}, {"idx": 83, "label": "組織類別(4) 部門名稱", "required": false}, {"idx": 84, "label": "組織類別(5) 部門代碼", "required": false}, {"idx": 85, "label": "組織類別(5) 部門名稱", "required": false}, {"idx": 86, "label": "職位代碼", "required": false}, {"idx": 87, "label": "職位名稱", "required": true}, {"idx": 88, "label": "職等代碼", "required": false}, {"idx": 89, "label": "職等名稱", "required": true}, {"idx": 90, "label": "職級代碼", "required": false}, {"idx": 91, "label": "職級名稱", "required": false}, {"idx": 92, "label": "職務類別代碼", "required": false}, {"idx": 93, "label": "職務類別名稱", "required": false}, {"idx": 94, "label": "職種代碼", "required": false}, {"idx": 95, "label": "職種名稱", "required": true}, {"idx": 96, "label": "職務說明書代碼", "required": false}, {"idx": 97, "label": "職務說明書名稱", "required": false}, {"idx": 98, "label": "名片職務代碼", "required": false}, {"idx": 99, "label": "名片職務名稱", "required": false}, {"idx": 100, "label": "身份類別代碼", "required": false}, {"idx": 101, "label": "身份類別名稱", "required": true}, {"idx": 102, "label": "直間接別", "required": true}, {"idx": 103, "label": "責任區分", "required": false}, {"idx": 104, "label": "編制狀態", "required": false}, {"idx": 105, "label": "工作區域代碼", "required": false}, {"idx": 106, "label": "工作區域名稱", "required": true}, {"idx": 107, "label": "工作地點代碼", "required": false}, {"idx": 108, "label": "工作地點名稱", "required": true}, {"idx": 109, "label": "廠別代碼", "required": false}, {"idx": 110, "label": "廠別名稱", "required": true}, {"idx": 111, "label": "現任部門職務-備註", "required": false}, {"idx": 112, "label": "在職狀態", "required": true}, {"idx": 113, "label": "到職日期", "required": false}, {"idx": 114, "label": "到企業集團日", "required": false}, {"idx": 115, "label": "轉出集團日", "required": false}, {"idx": 116, "label": "最後離職日期", "required": true}, {"idx": 117, "label": "最後離職復職日期", "required": false}, {"idx": 118, "label": "最後留職停薪日期", "required": false}, {"idx": 119, "label": "最後留停復職日期", "required": false}, {"idx": 120, "label": "最後到復職日期", "required": false}, {"idx": 121, "label": "試用期", "required": false}, {"idx": 122, "label": "試用期滿日期", "required": false}, {"idx": 123, "label": "試用期說明", "required": false}, {"idx": 124, "label": "工作年資起算日", "required": true}, {"idx": 125, "label": "工作年資(未扣減留停離職年資)", "required": false}, {"idx": 126, "label": "扣減留停離職年資", "required": true}, {"idx": 127, "label": "工作年資", "required": false}, {"idx": 128, "label": "退休年資起算日", "required": false}, {"idx": 129, "label": "勞退舊制年資結清", "required": false}, {"idx": 130, "label": "試用期，到職日及年資-備註", "required": false}, {"idx": 131, "label": "兼職 ( 一 )-最新任職日期", "required": false}, {"idx": 132, "label": "兼職 ( 一 )-最新卸職日期", "required": false}, {"idx": 133, "label": "兼職 ( 一 )-最新公司名稱", "required": false}, {"idx": 134, "label": "兼職 ( 一 )-最新部門代碼", "required": false}, {"idx": 135, "label": "兼職 ( 一 )-最新部門名稱", "required": false}, {"idx": 136, "label": "兼職 ( 一 )-最新職位代碼", "required": false}, {"idx": 137, "label": "兼職 ( 一 )-最新職位名稱", "required": false}, {"idx": 138, "label": "兼職 ( 一 )-最新職務類別代碼", "required": false}, {"idx": 139, "label": "兼職 ( 一 )-最新職務類別名稱", "required": false}, {"idx": 140, "label": "兼職 ( 一 )-最新職等代碼", "required": false}, {"idx": 141, "label": "兼職 ( 一 )-最新職等名稱", "required": false}, {"idx": 142, "label": "兼職 ( 一 )-最新職級代碼", "required": false}, {"idx": 143, "label": "兼職 ( 一 )-最新職級名稱", "required": false}, {"idx": 144, "label": "兼職 ( 一 )-最新備註", "required": false}, {"idx": 145, "label": "兼職 ( 一 )-最後修改人員", "required": false}, {"idx": 146, "label": "兼職 ( 一 )-最後修改時間", "required": false}, {"idx": 147, "label": "兼職 ( 二 )-最新任職日期", "required": false}, {"idx": 148, "label": "兼職 ( 二 )-最新卸職日期", "required": false}, {"idx": 149, "label": "兼職 ( 二 )-最新公司名稱", "required": false}, {"idx": 150, "label": "兼職 ( 二 )-最新部門代碼", "required": false}, {"idx": 151, "label": "兼職 ( 二 )-最新部門名稱", "required": false}, {"idx": 152, "label": "兼職 ( 二 )-最新職位代碼", "required": false}, {"idx": 153, "label": "兼職 ( 二 )-最新職位名稱", "required": false}, {"idx": 154, "label": "兼職 ( 二 )-最新職務類別代碼", "required": false}, {"idx": 155, "label": "兼職 ( 二 )-最新職務類別名稱", "required": false}, {"idx": 156, "label": "兼職 ( 二 )-最新職等代碼", "required": false}, {"idx": 157, "label": "兼職 ( 二 )-最新職等名稱", "required": false}, {"idx": 158, "label": "兼職 ( 二 )-最新職級代碼", "required": false}, {"idx": 159, "label": "兼職 ( 二 )-最新職級名稱", "required": false}, {"idx": 160, "label": "兼職 ( 二 )-最新備註", "required": false}, {"idx": 161, "label": "兼職 ( 二 )-最後修改人員", "required": false}, {"idx": 162, "label": "兼職 ( 二 )-最後修改時間", "required": false}, {"idx": 163, "label": "兼職 ( 三 )-最新任職日期", "required": false}, {"idx": 164, "label": "兼職 ( 三 )-最新卸職日期", "required": false}, {"idx": 165, "label": "兼職 ( 三 )-最新公司名稱", "required": false}, {"idx": 166, "label": "兼職 ( 三 )-最新部門代碼", "required": false}, {"idx": 167, "label": "兼職 ( 三 )-最新部門名稱", "required": false}, {"idx": 168, "label": "兼職 ( 三 )-最新職位代碼", "required": false}, {"idx": 169, "label": "兼職 ( 三 )-最新職位名稱", "required": false}, {"idx": 170, "label": "兼職 ( 三 )-最新職務類別代碼", "required": false}, {"idx": 171, "label": "兼職 ( 三 )-最新職務類別名稱", "required": false}, {"idx": 172, "label": "兼職 ( 三 )-最新職等代碼", "required": false}, {"idx": 173, "label": "兼職 ( 三 )-最新職等名稱", "required": false}, {"idx": 174, "label": "兼職 ( 三 )-最新職級代碼", "required": false}, {"idx": 175, "label": "兼職 ( 三 )-最新職級名稱", "required": false}, {"idx": 176, "label": "兼職 ( 三 )-最新備註", "required": false}, {"idx": 177, "label": "兼職 ( 三 )-最後修改人員", "required": false}, {"idx": 178, "label": "兼職 ( 三 )-最後修改時間", "required": false}];
+const FIELD_MAP = {"員工編號": "empId", "姓名": "name", "英文姓名": "enName", "國籍": "nationality", "性別": "gender", "生日": "birthday", "血型": "bloodType", "婚姻狀況": "marital", "族群身分": "ethnic", "最高學歷": "education", "戶籍地區": "householdRegion", "通訊地區": "mailingRegion", "部門代碼": "deptCode", "部門名稱": "deptName", "職位名稱": "position", "職等名稱": "grade", "職種名稱": "jobCategory", "身份類別名稱": "identityCategory", "直間接別": "directIndirect", "工作區域名稱": "workArea", "工作地點名稱": "workLocation", "廠別名稱": "plant", "在職狀態": "employStatus", "最後離職日期": "resignDate", "工作年資起算日": "tenureStart", "扣減留停離職年資": "deductYears"};
+const REQUIRED_FIELDS = ["員工編號", "姓名", "英文姓名", "國籍", "性別", "生日", "血型", "婚姻狀況", "族群身分", "最高學歷", "戶籍地區", "通訊地區", "部門代碼", "部門名稱", "職位名稱", "職等名稱", "職種名稱", "身份類別名稱", "直間接別", "工作區域名稱", "工作地點名稱", "廠別名稱", "在職狀態", "最後離職日期", "工作年資起算日", "扣減留停離職年資"];
+
+function renderFieldLegend(){
+  const legend = document.getElementById('field-legend');
+  legend.innerHTML = REQUIRED_FIELDS.map(f=>`<div class="fl-item"><span class="dot"></span>${f}</div>`).join('');
+  document.getElementById('reserved-note').textContent =
+    `除以上 ${REQUIRED_FIELDS.length} 個必要欄位外，範本另保留 ${ALL_FIELDS.length-REQUIRED_FIELDS.length} 個欄位以利未來人資系統資料完整匯入，目前儀表板暫不使用這些欄位。`;
+}
+
+function csvEscape(v){
+  v = String(v==null?'':v);
+  if(/[",\n]/.test(v)) return '"'+v.replace(/"/g,'""')+'"';
+  return v;
+}
+function downloadTemplate(){
+  const header = ALL_FIELDS.map(f=> f.required ? f.label+'(必填)' : f.label);
+  const csv = '﻿'+header.map(csvEscape).join(',')+'\r\n';
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '敦新員工資料匯入範本.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function parseCSV(text){
+  const rows=[]; let row=[]; let field=''; let inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQuotes=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQuotes=true;
+      else if(c===','){ row.push(field); field=''; }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if(c==='\r'){}
+      else field+=c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+function handleCSVFile(file){
+  if(!file) return;
+  const status = document.getElementById('import-status');
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      importCSVText(reader.result);
+    }catch(e){
+      status.innerHTML = `<span style="color:var(--red)">匯入失敗：${e.message}</span>`;
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+function importCSVText(text){
+  const status = document.getElementById('import-status');
+  const rows = parseCSV(text).filter(r=>r.length>1 || (r[0]&&r[0].trim()));
+  if(rows.length<2){ status.innerHTML = '<span style="color:var(--red)">檔案內容為空或格式錯誤</span>'; return; }
+  const header = rows[0].map(h=>h.replace(/\(必填\)\s*$/,'').trim());
+  const idxMap = {};
+  header.forEach((h,i)=>{ const key = FIELD_MAP[h]; if(key) idxMap[key]=i; });
+  const missing = Object.keys(FIELD_MAP).filter(label=>!(FIELD_MAP[label] in idxMap) && REQUIRED_FIELDS.includes(label));
+  if(missing.length){ status.innerHTML = `<span style="color:var(--red)">缺少必要欄位：${missing.join('、')}</span>`; return; }
+
+  const list = rows.slice(1)
+    .filter(r=>r.some(v=>v && v.trim()))
+    .map(r=>{
+      const o={};
+      Object.keys(idxMap).forEach(k=>{ o[k]=(r[idxMap[k]]||'').trim(); });
+      o.deductYears = parseFloat(o.deductYears)||0;
+      if(o.deptName && !o.deptCode) o.deptCode = o.deptName.split(' ')[0];
+      return o;
+    });
+
+  EMPLOYEES = list;
+  saveEmployees();
+  document.getElementById('csv-file').value='';
+
+  if(GS_URL){
+    status.innerHTML = `<span style="color:var(--ink3)">已儲存於本機，正在寫入 Google 試算表…</span>`;
+    gsPost({action:'importEmployees', list}).then(d=>{
+      status.innerHTML = d.ok
+        ? `<span style="color:var(--green)">已成功匯入 ${list.length} 筆員工資料，並同步寫入 Google 試算表</span>`
+        : `<span style="color:var(--red)">已儲存於本機，但寫入試算表失敗：${d.error||'未知錯誤'}</span>`;
+      renderAll();
+    }).catch(()=>{
+      status.innerHTML = `<span style="color:var(--red)">已儲存於本機，但無法連線至 Google 試算表</span>`;
+      renderAll();
+    });
+  } else {
+    status.innerHTML = `<span style="color:var(--green)">已成功匯入 ${list.length} 筆員工資料（僅儲存於本機）</span>`;
+    renderAll();
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   初始化
+   ══════════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', ()=>{
+  Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+  Chart.defaults.color = PALETTE.ink3;
+  Chart.defaults.borderColor = PALETTE.paper3;
+  loadEmployees(()=>{
+    if(!tryAutoLogin()){
+      document.getElementById('s-login').classList.add('active');
+    }
+  });
+});
+
+</script>
+</body>
+</html>
