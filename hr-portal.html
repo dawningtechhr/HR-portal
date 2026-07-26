@@ -2183,7 +2183,7 @@ async function downloadReport(source, format){
 const CHART_CATALOG = {
   overview: { tabId:'tab-overview', render:(stats,asOf)=>renderOverview(stats), items:{
     kpi:       {label:'KPI 總覽卡片', dom:'.kpi-grid'},
-    orgchart:  {label:'組織圖', dom:'#orgchart'},
+    orgchart:  {label:'組織圖', dom:'#orgchart', wrap:'.chart-card'},
     deptchart: {label:'各部門／各事業部人數', canvas:'c-dept'}
   }},
   composition: { tabId:'tab-composition', render:(stats,asOf)=>renderComposition(stats,asOf), items:{
@@ -2203,7 +2203,7 @@ const CHART_CATALOG = {
     'c-month-trend':   {label:'月份人力趨勢', canvas:'c-month-trend'},
     'c-turnover-trend':{label:'月別離職率趨勢', canvas:'c-turnover-trend'},
     'c-hire-resign':   {label:'每月到職／離職人數', canvas:'c-hire-resign'},
-    deptsummary:       {label:'各部門／事業部年資與離職概況', dom:'.dept-table-wrap'}
+    deptsummary:       {label:'各部門／事業部年資與離職概況', dom:'.dept-table-wrap', wrap:'.section-block'}
   }},
   care: { tabId:'tab-care', render:(stats,asOf)=>renderCare(stats,asOf), items:{
     'c-bloodtype':{label:'血型', canvas:'c-bloodtype'},
@@ -2247,12 +2247,34 @@ async function captureChartImages(items){
         // 只呼叫 update('none') 不夠，動畫循環仍會在下一輪蓋回未完成的畫面。
         chart.stop();
         chart.update('none');
-        dataUrl = chart.toBase64Image('image/png', 1);
-        width = chart.width; height = chart.height;
+        // 統一擷取整張圖表卡片（標題＋圖表本身，圓形圖還含圖例），而不是只擷取畫布本身，
+        // 讓下載的每張圖都跟畫面上一樣：標題顯示在圖表外框內側上方，不是外框外面另起一行文字。
+        const card = document.getElementById(it.canvas).closest('.chart-card');
+        const canvas = await html2canvas(card, {backgroundColor:'#ffffff', scale:2});
+        dataUrl = canvas.toDataURL('image/png');
+        width = canvas.width; height = canvas.height;
       } else if(it.dom){
         const el = document.querySelector(it.dom);
         if(!el) continue;
-        const canvas = await html2canvas(el, {backgroundColor:'#ffffff', scale:2});
+        let target = el;
+        let tempWrapper = null;
+        if(it.wrap){
+          target = el.closest(it.wrap) || el;
+        } else {
+          // 沒有現成的圖表卡片外框可用（例如 KPI 總覽卡片），臨時建立一個跟其他圖表卡片
+          // 同樣風格的外框，把標題放進外框內側上方，擷取後即移除，確保呈現方式一致。
+          tempWrapper = document.createElement('div');
+          tempWrapper.className = 'chart-card';
+          tempWrapper.style.cssText = `position:fixed;left:-9999px;top:0;width:${el.offsetWidth}px`;
+          const h3 = document.createElement('h3');
+          h3.textContent = it.label;
+          tempWrapper.appendChild(h3);
+          tempWrapper.appendChild(el.cloneNode(true));
+          document.body.appendChild(tempWrapper);
+          target = tempWrapper;
+        }
+        const canvas = await html2canvas(target, {backgroundColor:'#ffffff', scale:2});
+        if(tempWrapper) document.body.removeChild(tempWrapper);
         dataUrl = canvas.toDataURL('image/png');
         width = canvas.width; height = canvas.height;
       }
@@ -2280,6 +2302,7 @@ function dataURLToUint8Array(dataUrl){
   return bytes;
 }
 
+/** 每張下載的圖片本身已經包含標題（擷取整個圖表卡片外框），所以這裡不再另外畫一行標題文字。 */
 function exportImagesToPDF(images, filename){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'a4'});
@@ -2288,26 +2311,22 @@ function exportImagesToPDF(images, filename){
   const margin = 36;
   images.forEach((img, i)=>{
     if(i>0) doc.addPage();
-    doc.setFontSize(14);
-    doc.text(img.label, margin, margin);
     const maxW = pageW - margin*2;
-    const maxH = pageH - margin*2 - 30;
+    const maxH = pageH - margin*2;
     const ratio = Math.min(maxW/img.width, maxH/img.height);
-    doc.addImage(img.dataUrl, 'PNG', margin, margin+20, img.width*ratio, img.height*ratio);
+    doc.addImage(img.dataUrl, 'PNG', margin, margin, img.width*ratio, img.height*ratio);
   });
   doc.save(filename);
 }
 
 async function exportImagesToDocx(images, filename){
-  const { Document, Packer, Paragraph, ImageRun, HeadingLevel } = window.docx;
-  const children = [];
-  images.forEach(img=>{
+  const { Document, Packer, Paragraph, ImageRun } = window.docx;
+  const children = images.map(img=>{
     const ratio = Math.min(560/img.width, 1);
-    children.push(new Paragraph({text: img.label, heading: HeadingLevel.HEADING_2}));
-    children.push(new Paragraph({ children:[ new ImageRun({
+    return new Paragraph({ children:[ new ImageRun({
       data: dataURLToUint8Array(img.dataUrl),
       transformation:{width: Math.round(img.width*ratio), height: Math.round(img.height*ratio)}
-    }) ] }));
+    }) ] });
   });
   const doc = new Document({ sections:[{ children }] });
   downloadBlob(await Packer.toBlob(doc), filename);
@@ -2317,11 +2336,10 @@ function exportImagesToPptx(images, filename){
   const pptx = new PptxGenJS();
   images.forEach(img=>{
     const slide = pptx.addSlide();
-    slide.addText(img.label, {x:0.3, y:0.2, w:9, h:0.5, fontSize:20, bold:true});
-    const maxW = 9, maxH = 4.6, wIn = img.width/96, hIn = img.height/96;
+    const maxW = 9.4, maxH = 5.4, wIn = img.width/96, hIn = img.height/96;
     const ratio = Math.min(maxW/wIn, maxH/hIn);
     const w = wIn*ratio, h = hIn*ratio;
-    slide.addImage({data:img.dataUrl, x:(10-w)/2, y:0.9, w, h});
+    slide.addImage({data:img.dataUrl, x:(10-w)/2, y:(5.63-h)/2, w, h});
   });
   pptx.writeFile({fileName:filename});
 }
