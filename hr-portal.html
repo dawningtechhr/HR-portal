@@ -282,6 +282,10 @@ tr:hover td{background:var(--paper)}
 .oc-tier3-wrap{display:flex;flex-direction:column;align-items:flex-end;align-self:stretch;width:100%;padding-right:4%;margin-top:.5rem;box-sizing:border-box}
 .oc-tier3-connector{position:absolute;width:2px;background:var(--paper3)}
 .oc-bus-extend{position:absolute;height:2px;background:var(--paper3)}
+/* 當總經理直屬部門的標籤位置落在事業部方框正下方時，連接線改走繞開方框的折線，
+   這兩段是繞行路徑用的「方框右側垂直下拉段」與「方框下緣以下的水平接回段」。 */
+.oc-tier3-outer-drop{position:absolute;width:2px;background:var(--paper3)}
+.oc-tier3-bridge{position:absolute;height:2px;background:var(--paper3)}
 .oc-tier3-label{font-size:.7rem;color:var(--ink3);margin:0}
 .oc-tier3 .oc-box{background:#fff;font-weight:600;font-size:.72rem;padding:.4rem .7rem}
 .oc-tier3.oc-children{justify-content:flex-end}
@@ -1010,7 +1014,7 @@ function normalizeDeptCodes(){
     if(e.deptCode && !deptByCode[e.deptCode] && divByCode[e.deptCode]) usedDivCodes.add(e.deptCode);
   });
   usedDivCodes.forEach(code=>{
-    const virtualDept = { code, name: divByCode[code].name, divisionCode: code };
+    const virtualDept = { code, name: divByCode[code].name, divisionCode: code, virtual: true };
     departments.push(virtualDept);
     deptByCode[code] = virtualDept;
   });
@@ -1764,7 +1768,9 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
         <div class="oc-children oc-tier3 ${tier3.length<=1?'oc-single':''}">${t3HTML}</div>
       </div>
       <div class="oc-tier3-connector"></div>
-      <div class="oc-bus-extend"></div>`;
+      <div class="oc-bus-extend"></div>
+      <div class="oc-tier3-outer-drop"></div>
+      <div class="oc-tier3-bridge"></div>`;
   }
   el.innerHTML = `
     <div class="oc-root">
@@ -1807,7 +1813,9 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
     const label = el.querySelector('.oc-tier3-label');
     const connector = el.querySelector('.oc-tier3-connector');
     const busExtend = el.querySelector('.oc-bus-extend');
-    if(tier2Row && label && connector && busExtend){
+    const outerDrop = el.querySelector('.oc-tier3-outer-drop');
+    const bridge = el.querySelector('.oc-tier3-bridge');
+    if(tier2Row && label && connector && busExtend && outerDrop && bridge){
       const tier2Rect = tier2Row.getBoundingClientRect();
       const labelRect = label.getBoundingClientRect();
       const busY = tier2Rect.top - orgRect.top;
@@ -1815,15 +1823,48 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
       const labelCenterX = labelRect.left + labelRect.width/2 - orgRect.left;
       const tier2BusRightX = (tier2Rect.right - orgRect.left) - tier2Rect.width*0.08;
 
-      connector.style.left = labelCenterX + 'px';
-      connector.style.top = busY + 'px';
-      connector.style.height = Math.max(0, labelTop - busY) + 'px';
+      // 直屬部門的標籤中心若落在事業部方框的正下方（例如事業部數量多、方框幾乎佔滿整排寬度時），
+      // 直接垂直下拉會穿過方框；改走「沿事業部方框上緣空白處往右 → 在方框右側空白處垂直下拉到
+      // 方框下緣以下 → 再往左接回標籤中心」的折線，全程避開事業部方框範圍，不會視覺重疊。
+      const divBoxes = [...el.querySelectorAll('.oc-children:not(.oc-tier3) > .oc-child .oc-box')];
+      const rightmostBoxEdge = divBoxes.length
+        ? Math.max(...divBoxes.map(b=>b.getBoundingClientRect().right)) - orgRect.left
+        : tier2BusRightX;
+      const clearX = rightmostBoxEdge + 12;
+      const needsDetour = labelCenterX < clearX && clearX < orgRect.width - 2;
 
-      const busLeft = Math.min(tier2BusRightX, labelCenterX);
-      const busWidth = Math.abs(labelCenterX - tier2BusRightX);
-      busExtend.style.left = busLeft + 'px';
-      busExtend.style.top = busY + 'px';
-      busExtend.style.width = busWidth + 'px';
+      if(needsDetour){
+        const boxesBottomY = (Math.max(...divBoxes.map(b=>b.getBoundingClientRect().bottom)) - orgRect.top) + 6;
+
+        busExtend.style.left = Math.min(tier2BusRightX, clearX) + 'px';
+        busExtend.style.top = busY + 'px';
+        busExtend.style.width = Math.abs(clearX - tier2BusRightX) + 'px';
+
+        outerDrop.style.display = '';
+        outerDrop.style.left = clearX + 'px';
+        outerDrop.style.top = busY + 'px';
+        outerDrop.style.height = Math.max(0, boxesBottomY - busY) + 'px';
+
+        bridge.style.display = '';
+        bridge.style.left = Math.min(clearX, labelCenterX) + 'px';
+        bridge.style.top = boxesBottomY + 'px';
+        bridge.style.width = Math.abs(clearX - labelCenterX) + 'px';
+
+        connector.style.left = labelCenterX + 'px';
+        connector.style.top = boxesBottomY + 'px';
+        connector.style.height = Math.max(0, labelTop - boxesBottomY) + 'px';
+      } else {
+        outerDrop.style.display = 'none';
+        bridge.style.display = 'none';
+
+        connector.style.left = labelCenterX + 'px';
+        connector.style.top = busY + 'px';
+        connector.style.height = Math.max(0, labelTop - busY) + 'px';
+
+        busExtend.style.left = Math.min(tier2BusRightX, labelCenterX) + 'px';
+        busExtend.style.top = busY + 'px';
+        busExtend.style.width = Math.abs(labelCenterX - tier2BusRightX) + 'px';
+      }
     }
   }
 }
@@ -1838,6 +1879,14 @@ function renderNameGrid(elId, items, emptyText, cardHtmlFn){
   } else {
     el.innerHTML = items.map(cardHtmlFn).join('');
   }
+}
+
+/** 組織圖方框不需要顯示 normalizeDeptCodes() 補的「事業部直屬、未分部門」虛擬部門節點
+ *  （這類人已經算進事業部總人數了，圖上不需要再多一個跟事業部同名的方框）；
+ *  部門年資／離職概況表格與長條圖仍會列出，方便追蹤，不受此過濾影響。 */
+function excludeVirtualDepts(list){
+  const virtualCodes = new Set((ORG_TREE.departments || DEPARTMENTS).filter(d=>d.virtual).map(d=>d.code));
+  return list.filter(d=>!virtualCodes.has(d.code));
 }
 
 function renderOverview(stats, asOf){
@@ -1857,7 +1906,7 @@ function renderOverview(stats, asOf){
       const GM_DIV_CODE = '3DA100';
       const tier2 = divSorted.filter(d=>d.code !== GM_DIV_CODE);
       const gmDeptCodes = new Set((ORG_TREE.departments||DEPARTMENTS).filter(d=>d.divisionCode===GM_DIV_CODE).map(d=>d.code));
-      const tier3 = stats.deptStats.filter(d=>gmDeptCodes.has(d.code)).sort((a,b)=>b.headcount-a.headcount);
+      const tier3 = excludeVirtualDepts(stats.deptStats.filter(d=>gmDeptCodes.has(d.code))).sort((a,b)=>b.headcount-a.headcount);
       orgSubEl.textContent = '總經理 → 各事業部／直屬部門';
       renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE);
     } else {
@@ -1881,7 +1930,7 @@ function renderOverview(stats, asOf){
       orgDeptSorted = orgStats.deptStats.slice().sort((a,b)=>b.headcount-a.headcount);
       orgActiveCount = orgStats.activeCount;
     }
-    renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined);
+    renderOrgChart(rootLabel, orgActiveCount, excludeVirtualDepts(orgDeptSorted), undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined);
   }
 
   renderNameGrid('today-bday-list', stats.todayBirthdays, '今日無壽星', e=>{
