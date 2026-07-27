@@ -263,6 +263,9 @@ tr:hover td{background:var(--paper)}
 .orgchart-wrap{overflow:auto;display:flex;align-items:center;justify-content:center;padding:1rem 0;height:auto;min-height:260px}
 .orgchart{position:relative;display:flex;flex-direction:column;align-items:center;min-width:min-content;width:100%}
 .oc-box{background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--radius);padding:.5rem .85rem;font-size:.76rem;font-weight:700;color:var(--ink);text-align:center;white-space:nowrap;line-height:1.3}
+/* 可點選切換檢視範圍的方框（事業部／部門／總經理室，根節點本身不可點選）：加游標與 hover 提示。 */
+.oc-box[onclick]{cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.oc-box[onclick]:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);border-color:var(--accent)}
 .oc-root{display:flex;flex-direction:column;align-items:center}
 .oc-root .oc-box{background:var(--accent);color:#fff;border-color:var(--accent2)}
 /* 主管同時管理多個事業部時，並排顯示各事業部自己完整展開的組織圖（一左一右），
@@ -310,6 +313,11 @@ tr:hover td{background:var(--paper)}
 .bday-card .bc-meta{font-size:.7rem;color:var(--ink3);margin-top:.1rem}
 .bday-card .bc-num{color:var(--red);font-weight:700}
 .bday-empty{padding:2rem;text-align:center;color:var(--ink3);font-size:.85rem}
+.kpi-card.kpi-clickable{cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.kpi-card.kpi-clickable:hover{box-shadow:0 2px 10px rgba(0,0,0,.08);border-color:var(--accent)}
+/* 「年化離職率（近12個月）」字數較多，預設欄寬下會自動換行；改為不換行，卡片較窄時改用縮小字級因應。 */
+.kpi-card .kl{white-space:nowrap}
+@media (max-width:1300px){.kpi-card .kl{font-size:.66rem}}
 
 .dept-table-wrap{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);overflow:hidden;margin-top:1.25rem}
 .dept-table-wrap table td, .dept-table-wrap table th{text-align:center}
@@ -424,8 +432,8 @@ tr:hover td{background:var(--paper)}
         <div class="kpi-card"><div class="kv red" id="kpi-turnover">—</div><div class="kl">年化離職率（近12個月）</div></div>
         <div class="kpi-card"><div class="kv blue" id="kpi-tenure">—</div><div class="kl">平均年資</div></div>
         <div class="kpi-card"><div class="kv ink" id="kpi-age">—</div><div class="kl">平均年齡</div></div>
-        <div class="kpi-card"><div class="kv accent" id="kpi-newhire">—</div><div class="kl">本月新進</div></div>
-        <div class="kpi-card"><div class="kv accent" id="kpi-bday">—</div><div class="kl">本月壽星</div></div>
+        <div class="kpi-card kpi-clickable" onclick="toggleOverviewDrill('newhire')"><div class="kv accent" id="kpi-newhire">—</div><div class="kl">本月新進</div></div>
+        <div class="kpi-card kpi-clickable" onclick="toggleOverviewDrill('resign')"><div class="kv red" id="kpi-resign">—</div><div class="kl">本月離職</div></div>
       </div>
 
       <div class="charts-grid-2">
@@ -442,6 +450,29 @@ tr:hover td{background:var(--paper)}
       <div class="section-block">
         <h2>今日滿週年員工</h2>
         <div id="today-anniv-list" class="bday-grid"></div>
+      </div>
+
+      <div class="section-block drill-section" id="overview-drill" style="display:none">
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3 id="overview-drill-title">篩選結果</h3>
+            <div class="table-actions">
+              <span class="cc-sub" id="overview-drill-count" style="margin-right:.75rem"></span>
+              <button class="btn-secondary btn-sm" onclick="clearDrill('overview')">清除篩選 ✕</button>
+              <div class="dl-dropdown-wrap">
+                <button class="btn-secondary btn-sm" onclick="toggleReportMenu(this)">📄 報表下載</button>
+                <div class="dl-dropdown-menu">
+                  <button onclick="downloadReport('overview','xlsx')">Excel（.xlsx）</button>
+                  <button onclick="downloadReport('overview','docx')">Word（.docx）</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <table>
+            <thead id="overview-drill-thead"></thead>
+            <tbody id="overview-drill-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1290,7 +1321,8 @@ function computeStats(list, asOf){
     return d.getMonth()===asOf.getMonth() && d.getDate()===asOf.getDate() && asOf.getFullYear()>d.getFullYear();
   });
 
-  const newHiresThisMonth = list.filter(e=>e.tenureStart && sameMonth(fromISO(e.tenureStart), asOf)).length;
+  const newHiresThisMonthList = list.filter(e=>e.tenureStart && sameMonth(fromISO(e.tenureStart), asOf));
+  const resignedThisMonthList = list.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), asOf));
 
   const avgAge = active.length ? active.reduce((s,e)=>s+ageOn(e.birthday,asOf),0)/active.length : 0;
   const avgTenureAll = active.length ? active.reduce((s,e)=>s+tenureYears(e,asOf),0)/active.length : 0;
@@ -1298,7 +1330,9 @@ function computeStats(list, asOf){
   return {
     active, resigned12,
     activeCount: active.length,
-    annualTurnover, avgAge, avgTenureAll, newHiresThisMonth,
+    annualTurnover, avgAge, avgTenureAll,
+    newHiresThisMonth: newHiresThisMonthList.length, newHiresThisMonthList,
+    resignedThisMonth: resignedThisMonthList.length, resignedThisMonthList,
     genderCounts: count(active,'gender'),
     eduCounts: count(active,'education'),
     jobCatCounts: count(active,'jobCategory'),
@@ -1683,6 +1717,31 @@ function changeDivisionFilter(v){
 }
 function changeDeptFilter(v){ currentDeptFilter = v; renderAll(); }
 
+/** 組織圖上點選事業部方框：切換「全公司視角」的事業部篩選到該事業部（等同在下拉選單選取），並同步下拉選單顯示。 */
+function orgChartGoToDivision(code){
+  currentDivisionFilter = code;
+  currentDeptFilter = 'ALL';
+  const divSel = document.getElementById('division-filter');
+  if(divSel && divSel.style.display !== 'none') divSel.value = code;
+  renderDeptFilterOptions();
+  renderAll();
+}
+/** 組織圖上點選部門方框：切換事業部＋部門篩選到該部門所屬的事業部與部門本身；
+ *  再次點選目前已篩選中的同一個部門則取消部門篩選（回到檢視整個事業部），與圖表下鑽點選同一指標值可取消篩選的操作邏輯一致。 */
+function orgChartGoToDepartment(code){
+  const dept = (ORG_TREE.departments || DEPARTMENTS).find(d=>d.code===code);
+  if(!dept) return;
+  const nextDeptFilter = (currentDivisionFilter === dept.divisionCode && currentDeptFilter === code) ? 'ALL' : code;
+  currentDivisionFilter = dept.divisionCode;
+  currentDeptFilter = nextDeptFilter;
+  const divSel = document.getElementById('division-filter');
+  if(divSel && divSel.style.display !== 'none') divSel.value = dept.divisionCode;
+  renderDeptFilterOptions();
+  const deptSel = document.getElementById('dept-filter');
+  if(deptSel && deptSel.style.display !== 'none') deptSel.value = currentDeptFilter;
+  renderAll();
+}
+
 function switchTab(tabId){
   if((tabId==='tab-admin' || tabId==='tab-chartdownload') && (!currentUser || currentUser.role!=='admin')) tabId='tab-overview';
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.tab===tabId));
@@ -1715,7 +1774,7 @@ function renderKPI(stats){
   document.getElementById('kpi-tenure').textContent = fmtYears(stats.avgTenureAll);
   document.getElementById('kpi-age').textContent = stats.avgAge.toFixed(1)+' 歲';
   document.getElementById('kpi-newhire').textContent = stats.newHiresThisMonth;
-  document.getElementById('kpi-bday').textContent = stats.thisMonthBirthdays.length;
+  document.getElementById('kpi-resign').textContent = stats.resignedThisMonth;
 }
 
 /** 依目前範圍內在職員工，彙總各事業部人數（跨部門加總）。 */
@@ -1769,12 +1828,12 @@ function renderMultiDivisionOrgChart(divisions, deptStats, highlightCode){
     const depts = deptStats.filter(d=>deptDivCode[d.code]===div.code).sort((a,b)=>b.headcount-a.headcount);
     const childrenHTML = depts.map(n=>`
       <div class="oc-child">
-        <div class="${boxClass(n)}">${boxContent(n)}</div>
+        <div class="${boxClass(n)}" onclick="orgChartGoToDepartment('${n.code}')">${boxContent(n)}</div>
       </div>`).join('');
     return `
       <div class="oc-cluster">
         <div class="oc-root">
-          <div class="${boxClass(div)}">${boxContent(div)}</div>
+          <div class="${boxClass(div)}" onclick="orgChartGoToDivision('${div.code}')">${boxContent(div)}</div>
           <div class="oc-root-stem"></div>
         </div>
         <div class="oc-children ${depts.length<=1?'oc-single':''}">${childrenHTML}</div>
@@ -1807,8 +1866,12 @@ function renderMultiDivisionOrgChart(divisions, deptStats, highlightCode){
  *  則只顯示姓名，避免重複顯示同樣的文字。
  *  highlightCode：若提供，該代碼對應的方框會用淺粉紅色填滿，用來標示目前部門篩選選到的那個部門。
  *  gmOfficeCount：若提供（非 null），在根節點方框右側加一個獨立的「總經理室」方框（大小比照部門層級方框），
- *  用來呈現部門代碼直接填 3DA100（總經理直屬）但不屬於人資營運處等任何實際部門的人數（已扣除總經理本人）。 */
-function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode, gmOfficeCount){
+ *  用來呈現部門代碼直接填 3DA100（總經理直屬）但不屬於人資營運處等任何實際部門的人數（已扣除總經理本人）。
+ *  nodeKind：第二層 nodes 方框代表的是事業部還是部門（'division'｜'department'，預設 'department'），
+ *  決定點選該方框時要切換事業部篩選還是部門篩選；tier3、總經理室固定是部門／事業部層級，不受此參數影響。
+ *  backToAllCode：若提供（通常是 'ALL'），根節點方框（此時是某個事業部本身）會變成可點選，
+ *  點下去回到「全部事業部」的全公司組織圖；僅在登入者本身就有全公司視角（而非單一事業部主管）時才會傳入此參數。 */
+function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode, gmOfficeCount, nodeKind, backToAllCode){
   const el = document.getElementById('orgchart');
   if(!el) return;
   const mgrMap = orgChartManagerMap();
@@ -1818,17 +1881,19 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
     return `${n.name}${mgrHTML}<span class="oc-count">${n.headcount} 人</span>`;
   };
   const boxClass = (n)=> 'oc-box' + (highlightCode && n.code === highlightCode ? ' oc-box-highlight' : '');
+  const goTo = (kind, code) => kind === 'division' ? `orgChartGoToDivision('${code}')` : `orgChartGoToDepartment('${code}')`;
+  const rootOnclick = backToAllCode ? ` onclick="${goTo('division', backToAllCode)}"` : '';
   const rootMgr = rootCode ? mgrMap[rootCode] : null;
   const rootMgrHTML = rootMgr ? `<span class="oc-manager">${rootMgr.name}${(rootMgr.title && rootMgr.title !== rootLabel) ? (' '+rootMgr.title) : ''}</span>` : '';
   const childrenHTML = nodes.map(n=>`
     <div class="oc-child">
-      <div class="${boxClass(n)}">${boxContent(n)}</div>
+      <div class="${boxClass(n)}" onclick="${goTo(nodeKind || 'department', n.code)}">${boxContent(n)}</div>
     </div>`).join('');
   let tier3HTML = '';
   if(tier3 && tier3.length){
     const t3HTML = tier3.map(n=>`
       <div class="oc-child">
-        <div class="${boxClass(n)}">${boxContent(n)}</div>
+        <div class="${boxClass(n)}" onclick="${goTo('department', n.code)}">${boxContent(n)}</div>
       </div>`).join('');
     tier3HTML = `
       <div class="oc-tier3-wrap">
@@ -1841,11 +1906,11 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
       <div class="oc-tier3-bridge"></div>`;
   }
   const gmOfficeHTML = gmOfficeCount != null
-    ? `<div class="oc-gm-office"><div class="oc-box">總經理室<span class="oc-count">${gmOfficeCount} 人</span></div></div><div class="oc-gm-office-connector"></div>`
+    ? `<div class="oc-gm-office"><div class="oc-box" onclick="${goTo('division','3DA100')}">總經理室<span class="oc-count">${gmOfficeCount} 人</span></div></div><div class="oc-gm-office-connector"></div>`
     : '';
   el.innerHTML = `
     <div class="oc-root">
-      <div class="oc-box">${rootLabel}${rootMgrHTML}<span class="oc-count">${rootCount} 人</span></div>
+      <div class="oc-box"${rootOnclick}>${rootLabel}${rootMgrHTML}<span class="oc-count">${rootCount} 人</span></div>
       <div class="oc-root-stem"></div>
     </div>
     ${gmOfficeHTML}
@@ -1996,7 +2061,7 @@ function renderOverview(stats, asOf){
       // 總經理室：部門代碼直接填 3DA100（不屬於人資營運處等任何實際部門）的人，扣除總經理本人後
       // 獨立呈現在根節點右側，而不是併入下方的部門明細列表。
       const gmOfficeCount = Math.max(0, stats.active.filter(e=>e.deptCode===GM_DIV_CODE).length - 1);
-      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE, undefined, gmOfficeCount);
+      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE, undefined, gmOfficeCount, 'division');
     } else {
       // 主管同時管理多個事業部：並排顯示各事業部自己完整展開的組織圖（一左一右），
       // 而不是把多個事業部壓成同一棵樹的第二層方框。
@@ -2026,7 +2091,10 @@ function renderOverview(stats, asOf){
     const gmOfficeCount = currentDivisionFilter === '3DA100'
       ? Math.max(0, orgActive.filter(e=>e.deptCode==='3DA100').length - 1)
       : undefined;
-    renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined, gmOfficeCount);
+    // 只有本身就擁有全公司視角的登入者（人資後台／總經理），點選事業部根節點方框才能回到全部事業部的
+    // 全公司組織圖；單一事業部主管本來就沒有「全部事業部」可回去，不提供這個返回功能。
+    const backToAllCode = currentScope().level === 'company' ? 'ALL' : undefined;
+    renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined, gmOfficeCount, 'department', backToAllCode);
   }
 
   renderNameGrid('today-bday-list', stats.todayBirthdays, '今日無壽星', e=>{
@@ -2037,6 +2105,18 @@ function renderOverview(stats, asOf){
     const years = asOf.getFullYear() - fromISO(e.tenureStart).getFullYear();
     return `<div class="bday-card"><div class="bc-icon">🎉</div><div><div class="bc-name">${e.name}<span class="bc-dept">${e.deptName.split(' ').slice(1).join(' ')}</span></div><div class="bc-meta">到職滿 <span class="bc-num">${years}</span> 週年</div></div></div>`;
   });
+
+  refreshActiveDrill('overview', stats);
+}
+
+/** KPI 卡片「本月新進」「本月離職」點選後在頁面最下方顯示符合條件的員工清單，欄位與其他圖表下鑽結果一致。 */
+function toggleOverviewDrill(kind){
+  const stats = computeStats(filteredEmployees(), new Date());
+  if(kind === 'newhire'){
+    toggleDrill('overview', 'kpi-newhire', '', '本月新進', stats.newHiresThisMonthList, (freshStats)=>freshStats.newHiresThisMonthList);
+  } else {
+    toggleDrill('overview', 'kpi-resign', '', '本月離職', stats.resignedThisMonthList, (freshStats)=>freshStats.resignedThisMonthList);
+  }
 }
 
 function renderComposition(stats, asOf){
@@ -2210,15 +2290,16 @@ function employeeRowHTML(e, asOf){
 /* ---------- 圖表下鑽：點選「人力組成」／「員工關懷」頁面的圖表指標，於頁面下方顯示符合條件的員工資料 ---------- */
 const DRILL_IDS = {
   composition: {section:'comp-drill', body:'comp-drill-body', title:'comp-drill-title', count:'comp-drill-count', thead:'comp-drill-thead'},
-  care: {section:'care-drill', body:'care-drill-body', title:'care-drill-title', count:'care-drill-count', thead:'care-drill-thead'}
+  care: {section:'care-drill', body:'care-drill-body', title:'care-drill-title', count:'care-drill-count', thead:'care-drill-thead'},
+  overview: {section:'overview-drill', body:'overview-drill-body', title:'overview-drill-title', count:'overview-drill-count', thead:'overview-drill-thead'}
 };
-let drillState = { composition:null, care:null };
-let drillListRaw = { composition:[], care:[] };
-let drillSort = { composition:{key:null, dir:1}, care:{key:null, dir:1} };
+let drillState = { composition:null, care:null, overview:null };
+let drillListRaw = { composition:[], care:[], overview:[] };
+let drillSort = { composition:{key:null, dir:1}, care:{key:null, dir:1}, overview:{key:null, dir:1} };
 function showDrill(page, fieldLabel, valueLabel, list, scrollIntoView){
   const ids = DRILL_IDS[page];
   drillListRaw[page] = list;
-  document.getElementById(ids.title).textContent = `篩選結果：${fieldLabel} = ${valueLabel}`;
+  document.getElementById(ids.title).textContent = fieldLabel ? `篩選結果：${fieldLabel} = ${valueLabel}` : `篩選結果：${valueLabel}`;
   renderDrillBody(page);
   const section = document.getElementById(ids.section);
   section.style.display = '';
@@ -2324,7 +2405,7 @@ function getReportData(source){
   const state = drillSort[source];
   const list = state.key ? sortEmployeeList(raw, EMPLOYEE_COLUMNS, state, asOf) : raw.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
   const cur = drillState[source];
-  const title = cur ? `${cur.fieldLabel}_${cur.label}` : '篩選結果';
+  const title = cur ? (cur.fieldLabel ? `${cur.fieldLabel}_${cur.label}` : cur.label) : '篩選結果';
   return { list, asOf, title };
 }
 
@@ -2340,7 +2421,7 @@ function getReportMeta(source, asOf){
     if(q) filterCondition = `搜尋：${q}`;
   } else {
     const cur = drillState[source];
-    if(cur) filterCondition = `${cur.fieldLabel} = ${cur.label}`;
+    if(cur) filterCondition = cur.fieldLabel ? `${cur.fieldLabel} = ${cur.label}` : cur.label;
   }
   const dateStr = `${asOf.getFullYear()}/${pad2(asOf.getMonth()+1)}/${pad2(asOf.getDate())}`;
   return { divName, deptName, filterCondition, dateStr };
