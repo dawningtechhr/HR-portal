@@ -300,6 +300,10 @@ tr:hover td{background:var(--paper)}
 .oc-gm-office{position:absolute}
 .oc-gm-office .oc-box{background:#fff;font-weight:600;font-size:.72rem;padding:.4rem .7rem}
 .oc-gm-office-connector{position:absolute;height:2px;background:var(--paper3)}
+/* 稽核：浮動於根節點左側的獨立方框，做法與總經理室對稱，大小也比照（同一套 .oc-box 樣式）。 */
+.oc-audit-office{position:absolute}
+.oc-audit-office .oc-box{background:#fff;font-weight:600;font-size:.72rem;padding:.4rem .7rem}
+.oc-audit-office-connector{position:absolute;height:2px;background:var(--paper3)}
 .oc-tier3.oc-children{justify-content:flex-end}
 .donut-legend .dl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 
@@ -485,13 +489,11 @@ tr:hover td{background:var(--paper)}
         <div class="chart-card"><h3>性別比例</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-gender"></canvas></div><div class="donut-legend" id="c-gender-legend"></div></div>
         <div class="chart-card"><h3>在職狀態分布</h3><div class="cc-sub">在職 vs. 近12個月離職</div><div class="chart-canvas-wrap square donut"><canvas id="c-status"></canvas></div><div class="donut-legend" id="c-status-legend"></div></div>
         <div class="chart-card"><h3>最高學歷</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-edu"></canvas></div><div class="donut-legend" id="c-edu-legend"></div></div>
-        <div class="chart-card"><h3>身份類別</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-identity"></canvas></div><div class="donut-legend" id="c-identity-legend"></div></div>
-        <div class="chart-card"><h3>族群身分</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-ethnic"></canvas></div><div class="donut-legend" id="c-ethnic-legend"></div></div>
-        <div class="chart-card"><h3>職種分布</h3><div class="cc-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap square"><canvas id="c-jobcat"></canvas></div></div>
-        <div class="chart-card"><h3>工作地點</h3><div class="cc-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap square"><canvas id="c-worklocation"></canvas></div></div>
-        <div class="chart-card"><h3>年齡分布</h3><div class="cc-sub">依當日日期計算週歲</div><div class="chart-canvas-wrap square"><canvas id="c-age"></canvas></div></div>
-        <div class="chart-card"><h3>年資分布</h3><div class="cc-sub">依到職年資起算日計算</div><div class="chart-canvas-wrap square"><canvas id="c-tenure"></canvas></div></div>
-        <div class="chart-card"><h3>職等分布</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square"><canvas id="c-grade"></canvas></div></div>
+        <div class="chart-card"><h3>職種分布</h3><div class="cc-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap"><canvas id="c-jobcat"></canvas></div></div>
+        <div class="chart-card"><h3>工作地點</h3><div class="cc-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap"><canvas id="c-worklocation"></canvas></div></div>
+        <div class="chart-card"><h3>年齡分布</h3><div class="cc-sub">依當日日期計算週歲</div><div class="chart-canvas-wrap"><canvas id="c-age"></canvas></div></div>
+        <div class="chart-card"><h3>年資分布</h3><div class="cc-sub">依到職年資起算日計算</div><div class="chart-canvas-wrap"><canvas id="c-tenure"></canvas></div></div>
+        <div class="chart-card"><h3>職等分布</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap"><canvas id="c-grade"></canvas></div></div>
       </div>
 
       <div class="section-block drill-section" id="comp-drill" style="display:none">
@@ -528,7 +530,11 @@ tr:hover td{background:var(--paper)}
         <div class="chart-card"><h3>月份人力趨勢</h3><div class="cc-sub">近12個月，每月月底在職人數（本月為當日在職人數）</div><div class="chart-canvas-wrap"><canvas id="c-month-trend"></canvas></div></div>
       </div>
       <div class="charts-grid-2">
-        <div class="chart-card"><h3>月別離職率趨勢</h3><div class="cc-sub">近12個月，每月結算</div><div class="chart-canvas-wrap"><canvas id="c-turnover-trend"></canvas></div></div>
+        <div class="chart-card"><h3>年度離職率趨勢</h3><div class="cc-sub">近10年，每年結算（今年為至今資料）</div><div class="chart-canvas-wrap"><canvas id="c-year-turnover-trend"></canvas></div></div>
+        <div class="chart-card"><h3>月份離職率趨勢</h3><div class="cc-sub">近12個月，每月結算</div><div class="chart-canvas-wrap"><canvas id="c-turnover-trend"></canvas></div></div>
+      </div>
+      <div class="charts-grid-2">
+        <div class="chart-card"><h3>每年到職／離職人數</h3><div class="cc-sub">近10年</div><div class="chart-canvas-wrap"><canvas id="c-year-hire-resign"></canvas></div></div>
         <div class="chart-card"><h3>每月到職／離職人數</h3><div class="cc-sub">近12個月</div><div class="chart-canvas-wrap"><canvas id="c-hire-resign"></canvas></div></div>
       </div>
 
@@ -692,8 +698,6 @@ tr:hover td{background:var(--paper)}
           <label><input type="checkbox" value="composition:c-gender">性別比例</label>
           <label><input type="checkbox" value="composition:c-status">在職狀態分布</label>
           <label><input type="checkbox" value="composition:c-edu">最高學歷</label>
-          <label><input type="checkbox" value="composition:c-identity">身份類別</label>
-          <label><input type="checkbox" value="composition:c-ethnic">族群身分</label>
           <label><input type="checkbox" value="composition:c-jobcat">職種分布</label>
           <label><input type="checkbox" value="composition:c-worklocation">工作地點</label>
           <label><input type="checkbox" value="composition:c-age">年齡分布</label>
@@ -707,7 +711,9 @@ tr:hover td{background:var(--paper)}
         <div class="checkbox-grid">
           <label><input type="checkbox" value="movement:c-year-trend">年度人力趨勢</label>
           <label><input type="checkbox" value="movement:c-month-trend">月份人力趨勢</label>
-          <label><input type="checkbox" value="movement:c-turnover-trend">月別離職率趨勢</label>
+          <label><input type="checkbox" value="movement:c-year-turnover-trend">年度離職率趨勢</label>
+          <label><input type="checkbox" value="movement:c-turnover-trend">月份離職率趨勢</label>
+          <label><input type="checkbox" value="movement:c-year-hire-resign">每年到職／離職人數</label>
           <label><input type="checkbox" value="movement:c-hire-resign">每月到職／離職人數</label>
           <label><input type="checkbox" value="movement:deptsummary">各部門／事業部年資與離職概況</label>
         </div>
@@ -1035,11 +1041,14 @@ function loadEmployees(cb){
   }).catch(()=>{ loadEmployeesLocal(); cb && cb(); });
 }
 function saveEmployees(){ localStorage.setItem(EMP_KEY, JSON.stringify(EMPLOYEES)); }
-/** 部門代碼標準化：修正兩種常見的部門代碼填寫誤差，需在 ORG_TREE 是最新組織架構後執行。
- *  1. 部門代碼其實填的是「事業部代碼」（例如整批匯入時只填到事業部層級，未細分部門）：
+/** 部門代碼標準化：修正三種常見的部門代碼填寫誤差，需在 ORG_TREE 是最新組織架構後執行。
+ *  1. 部門代碼是「稽核」（3DA001，董事長室）：這個代碼不屬於總經理底下任何一個事業部，組織架構
+ *     裡完全沒有定義，屬於獨立於六大事業部之外的頂層單位。自動補上一個「稽核」虛擬事業部，
+ *     之後即比照第 2 點的邏輯，自動併入其虛擬部門統計。
+ *  2. 部門代碼其實填的是「事業部代碼」（例如整批匯入時只填到事業部層級，未細分部門）：
  *     在該事業部底下自動建立一個代碼與事業部相同的虛擬部門節點，讓這些員工能正確併入
  *     事業部的人數／年資／離職率統計，同時在部門層級表格中獨立列出一行，方便之後人工比對。
- *  2. 部門代碼是某個有效部門代碼的次分組（去掉字尾英文字母後能對應到一個有效部門代碼，
+ *  3. 部門代碼是某個有效部門代碼的次分組（去掉字尾英文字母後能對應到一個有效部門代碼，
  *     例如 3DW291A／3DW291B／3DW291C 皆為數據應用處 3DW291 的次分組），一律併入母部門統計。 */
 function normalizeDeptCodes(){
   const divisions = ORG_TREE.divisions || DIVISIONS;
@@ -1048,6 +1057,13 @@ function normalizeDeptCodes(){
   divisions.forEach(dv=>{ divByCode[dv.code] = dv; });
   const deptByCode = {};
   departments.forEach(d=>{ deptByCode[d.code] = d; });
+
+  const CHAIRMAN_CODE = '3DA001', CHAIRMAN_NAME = '稽核';
+  if(!divByCode[CHAIRMAN_CODE] && EMPLOYEES.some(e=>e.deptCode===CHAIRMAN_CODE)){
+    const chairmanDiv = { code: CHAIRMAN_CODE, name: CHAIRMAN_NAME };
+    divisions.push(chairmanDiv);
+    divByCode[CHAIRMAN_CODE] = chairmanDiv;
+  }
 
   const usedDivCodes = new Set();
   EMPLOYEES.forEach(e=>{
@@ -1192,7 +1208,7 @@ function tenureYears(emp, asOf){
 }
 function fmtYears(yrs){
   const y = Math.floor(yrs);
-  const m = Math.round((yrs-y)*12);
+  const m = Math.floor((yrs-y)*12);
   if(m>=12) return `${y+1}年0個月`;
   return `${y}年${m}個月`;
 }
@@ -1281,6 +1297,35 @@ function computeStats(list, asOf){
     const refDate = isCurrentYear ? asOf : new Date(y, 11, 31, 23,59,59);
     yearTrend.push({label:String(y), headcount:list.filter(e=>isActiveOn(e, refDate)).length});
   }
+  // 年度離職率趨勢（近10年）：每年各自的年化離職率，算法與 annualizedTurnoverRate() 相同
+  // （該年度每月月底在職人數的平均值當分母），只是把「近12個月」改成「該年度1～12月」；
+  // 今年尚未走完，只計算至今已過的月份。
+  const yearTurnoverTrend = [];
+  for(let i=9;i>=0;i--){
+    const y = asOf.getFullYear() - i;
+    const isCurrentYear = i===0;
+    const monthsInYear = isCurrentYear ? asOf.getMonth()+1 : 12;
+    let totalHC = 0, totalResigns = 0;
+    for(let m=0;m<monthsInYear;m++){
+      const mDate = new Date(y, m, 1);
+      const isLastMonth = isCurrentYear && m===asOf.getMonth();
+      const monthEnd = isLastMonth ? asOf : new Date(y, m+1, 0, 23,59,59);
+      totalHC += list.filter(e=>isActiveOn(e, monthEnd)).length;
+      totalResigns += list.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), mDate)).length;
+    }
+    const avgHC = totalHC/monthsInYear;
+    yearTurnoverTrend.push({label:String(y), rate: avgHC>0 ? +(totalResigns/avgHC*100).toFixed(1) : 0});
+  }
+  // 每年到職／離職人數（近10年）：依到職／離職日期落在該年度計算，邏輯與每月到職／離職人數相同。
+  const yearHireResign = [];
+  for(let i=9;i>=0;i--){
+    const y = asOf.getFullYear() - i;
+    yearHireResign.push({
+      label: String(y),
+      hires: list.filter(e=>e.tenureStart && fromISO(e.tenureStart).getFullYear()===y).length,
+      resigns: list.filter(e=>e.resignDate && fromISO(e.resignDate).getFullYear()===y).length
+    });
+  }
   // 月份人力趨勢（近12個月）：每月以「月底」在職人數結算，本月尚未走完，改以「當日」在職人數為準。
   const monthHeadcountTrend = [];
   for(let i=11;i>=0;i--){
@@ -1338,10 +1383,9 @@ function computeStats(list, asOf){
     jobCatCounts: count(active,'jobCategory'),
     bloodTypeCounts: count(active,'bloodType'),
     gradeCounts: count(active,'grade'),
-    identityCounts: count(active,'identityCategory'),
-    ethnicCounts: count(active,'ethnic'),
     workLocationCounts: count(active,'workLocation'),
     ageBandCounts, tenureBandCounts, deptStats, divisionStats, months, yearTrend, monthHeadcountTrend,
+    yearTurnoverTrend, yearHireResign,
     zodiacCounts, cnZodiacCounts, birthMonthCounts, thisMonthBirthdays, todayBirthdays, todayAnniversaries
   };
 }
@@ -1394,7 +1438,9 @@ function barChart(id, labels, data, opts={}){
       plugins:{legend:{display:false}},
       scales:{
         x:{grid:{display:!!opts.horizontal, color:PALETTE.paper3}, ticks:Object.assign({color:PALETTE.ink3, font:{size: opts.noRotate?10:11}}, opts.noRotate?{maxRotation:0, minRotation:0, autoSkip:false}:{})},
-        y:{beginAtZero:true, grid:{display:!opts.horizontal, color:PALETTE.paper3}, ticks:{color:PALETTE.ink3, font:{size:11}}}
+        // 橫條圖的類別軸（Y軸）在方框較窄時預設會自動略過部分刻度文字避免重疊，改為一律不省略，
+        // 確保每個中文指標名稱都會顯示；改用加高外框給足垂直空間來容納全部項目。
+        y:{beginAtZero:true, grid:{display:!opts.horizontal, color:PALETTE.paper3}, ticks:Object.assign({color:PALETTE.ink3, font:{size:11}}, opts.horizontal?{autoSkip:false}:{})}
       },
       onClick: opts.onClick ? (evt, elements, chart)=>{
         if(!elements.length) return;
@@ -1870,8 +1916,10 @@ function renderMultiDivisionOrgChart(divisions, deptStats, highlightCode){
  *  nodeKind：第二層 nodes 方框代表的是事業部還是部門（'division'｜'department'，預設 'department'），
  *  決定點選該方框時要切換事業部篩選還是部門篩選；tier3、總經理室固定是部門／事業部層級，不受此參數影響。
  *  backToAllCode：若提供（通常是 'ALL'），根節點方框（此時是某個事業部本身）會變成可點選，
- *  點下去回到「全部事業部」的全公司組織圖；僅在登入者本身就有全公司視角（而非單一事業部主管）時才會傳入此參數。 */
-function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode, gmOfficeCount, nodeKind, backToAllCode){
+ *  點下去回到「全部事業部」的全公司組織圖；僅在登入者本身就有全公司視角（而非單一事業部主管）時才會傳入此參數。
+ *  auditOfficeCount：若提供（非 null），在根節點方框左側加一個獨立的「稽核」方框（大小比照總經理室方框），
+ *  用來呈現董事長室（3DA001）的人數，不與其他事業部並列在第二層。 */
+function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode, gmOfficeCount, nodeKind, backToAllCode, auditOfficeCount){
   const el = document.getElementById('orgchart');
   if(!el) return;
   const mgrMap = orgChartManagerMap();
@@ -1908,7 +1956,11 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
   const gmOfficeHTML = gmOfficeCount != null
     ? `<div class="oc-gm-office"><div class="oc-box" onclick="${goTo('division','3DA100')}">總經理室<span class="oc-count">${gmOfficeCount} 人</span></div></div><div class="oc-gm-office-connector"></div>`
     : '';
+  const auditOfficeHTML = auditOfficeCount != null
+    ? `<div class="oc-audit-office"><div class="oc-box" onclick="${goTo('division','3DA001')}">稽核<span class="oc-count">${auditOfficeCount} 人</span></div></div><div class="oc-audit-office-connector"></div>`
+    : '';
   el.innerHTML = `
+    ${auditOfficeHTML}
     <div class="oc-root">
       <div class="oc-box"${rootOnclick}>${rootLabel}${rootMgrHTML}<span class="oc-count">${rootCount} 人</span></div>
       <div class="oc-root-stem"></div>
@@ -1960,6 +2012,30 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
       gmConnector.style.left = (rootRect.right - orgRect.left) + 'px';
       gmConnector.style.top = (rootRect.top - orgRect.top + rootRect.height/2) + 'px';
       gmConnector.style.width = (gmLeft - (rootRect.right - orgRect.left)) + 'px';
+    }
+  }
+  if(auditOfficeCount != null){
+    // 稽核方框浮動於根節點左側，做法與總經理室方框對稱：渲染後量測根節點方框的實際位置，
+    // 貼齊其左側、垂直置中對齊，兩個方框之間補一條橫線相連。寬度明確設成與總經理室方框一樣寬
+    // （而非依自身文字內容自然縮放），確保左右兩個方框視覺上大小一致。
+    const auditEl = el.querySelector('.oc-audit-office');
+    const auditConnector = el.querySelector('.oc-audit-office-connector');
+    const rootBoxEl3 = el.querySelector('.oc-root .oc-box');
+    const gmBoxForWidth = el.querySelector('.oc-gm-office .oc-box');
+    if(auditEl && auditConnector && rootBoxEl3){
+      const auditBoxEl = auditEl.querySelector('.oc-box');
+      if(gmBoxForWidth) auditBoxEl.style.width = gmBoxForWidth.getBoundingClientRect().width + 'px';
+      const orgRect = el.getBoundingClientRect();
+      const rootRect = rootBoxEl3.getBoundingClientRect();
+      const auditBoxRect = auditBoxEl.getBoundingClientRect();
+      const auditLeft = rootRect.left - orgRect.left - auditBoxRect.width - 16;
+      const auditTop = rootRect.top - orgRect.top + (rootRect.height - auditBoxRect.height)/2;
+      auditEl.style.left = auditLeft + 'px';
+      auditEl.style.top = auditTop + 'px';
+
+      auditConnector.style.left = (auditLeft + auditBoxRect.width) + 'px';
+      auditConnector.style.top = (rootRect.top - orgRect.top + rootRect.height/2) + 'px';
+      auditConnector.style.width = ((rootRect.left - orgRect.left) - (auditLeft + auditBoxRect.width)) + 'px';
     }
   }
   if(tier3 && tier3.length){
@@ -2052,16 +2128,20 @@ function renderOverview(stats, asOf){
     barChart('c-dept', divSorted.map(d=>d.name), divSorted.map(d=>d.headcount), {horizontal:true, thick:26, showValues:true});
     if(currentScope().level === 'company'){
       // 全公司視角：組織圖最上層改為「總經理」，總經理室（3DA100）不再與其他事業部並列，
-      // 改將其下轄部門獨立呈現為第三層「總經理直屬部門」。
+      // 改將其下轄部門獨立呈現為第三層「總經理直屬部門」；董事長室（3DA001，稽核）也不與其他
+      // 事業部並列，改獨立呈現在根節點左側的「稽核」方框。
       const GM_DIV_CODE = '3DA100';
-      const tier2 = divSorted.filter(d=>d.code !== GM_DIV_CODE);
+      const AUDIT_DIV_CODE = '3DA001';
+      const tier2 = divSorted.filter(d=>d.code !== GM_DIV_CODE && d.code !== AUDIT_DIV_CODE);
       const gmDeptCodes = new Set((ORG_TREE.departments||DEPARTMENTS).filter(d=>d.divisionCode===GM_DIV_CODE).map(d=>d.code));
       const tier3 = stats.deptStats.filter(d=>gmDeptCodes.has(d.code)).sort((a,b)=>b.headcount-a.headcount);
       orgSubEl.textContent = '總經理 → 各事業部／直屬部門';
       // 總經理室：部門代碼直接填 3DA100（不屬於人資營運處等任何實際部門）的人，扣除總經理本人後
       // 獨立呈現在根節點右側，而不是併入下方的部門明細列表。
       const gmOfficeCount = Math.max(0, stats.active.filter(e=>e.deptCode===GM_DIV_CODE).length - 1);
-      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE, undefined, gmOfficeCount, 'division');
+      // 稽核：董事長室（3DA001）目前只有稽核人員，獨立呈現在根節點左側，大小比照總經理室方框。
+      const auditOfficeCount = stats.active.filter(e=>e.deptCode===AUDIT_DIV_CODE).length;
+      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE, undefined, gmOfficeCount, 'division', undefined, auditOfficeCount);
     } else {
       // 主管同時管理多個事業部：並排顯示各事業部自己完整展開的組織圖（一左一右），
       // 而不是把多個事業部壓成同一棵樹的第二層方框。
@@ -2134,41 +2214,83 @@ function renderComposition(stats, asOf){
   const eduLabels = eduOrder.filter(k=>stats.eduCounts[k]);
   doughnutChart('c-edu', eduLabels, eduLabels.map(k=>stats.eduCounts[k]), CAT.slice(0,eduLabels.length),
     {onClick: onClick('c-edu', '最高學歷', (e,label)=>(e.education||'未填寫')===label)});
-  const identityLabels = Object.keys(stats.identityCounts);
-  doughnutChart('c-identity', identityLabels, identityLabels.map(k=>stats.identityCounts[k]), CAT.slice(0,identityLabels.length),
-    {onClick: onClick('c-identity', '身份類別', (e,label)=>(e.identityCategory||'未填寫')===label)});
-  const ethnicLabels = Object.keys(stats.ethnicCounts);
-  doughnutChart('c-ethnic', ethnicLabels, ethnicLabels.map(k=>stats.ethnicCounts[k]), CAT.slice(0,ethnicLabels.length),
-    {onClick: onClick('c-ethnic', '族群身分', (e,label)=>(e.ethnic||'未填寫')===label)});
   const jobLabels = Object.keys(stats.jobCatCounts).sort((a,b)=>stats.jobCatCounts[b]-stats.jobCatCounts[a]);
   barChart('c-jobcat', jobLabels, jobLabels.map(k=>stats.jobCatCounts[k]),
-    {showValues:true, onClick: onClick('c-jobcat', '職種', (e,label)=>(e.jobCategory||'未填寫')===label)});
+    {horizontal:true, showValues:true, onClick: onClick('c-jobcat', '職種', (e,label)=>(e.jobCategory||'未填寫')===label)});
   const locLabels = Object.keys(stats.workLocationCounts).sort((a,b)=>stats.workLocationCounts[b]-stats.workLocationCounts[a]);
   barChart('c-worklocation', locLabels, locLabels.map(k=>stats.workLocationCounts[k]),
-    {showValues:true, onClick: onClick('c-worklocation', '工作地點', (e,label)=>(e.workLocation||'未填寫')===label)});
+    {noRotate:true, showValues:true, onClick: onClick('c-worklocation', '工作地點', (e,label)=>(e.workLocation||'未填寫')===label)});
   barChart('c-age', stats.ageBandCounts.map(a=>a.label), stats.ageBandCounts.map(a=>a.count),
-    {showValues:true, onClick: onClick('c-age', '年齡', (e,label)=>{
+    {noRotate:true, showValues:true, onClick: onClick('c-age', '年齡', (e,label)=>{
       const b = AGE_BANDS.find(x=>x[0]===label); if(!b) return false;
       const a = ageOn(e.birthday,asOf); return a>=b[1] && a<=b[2];
     })});
   barChart('c-tenure', stats.tenureBandCounts.map(a=>a.label), stats.tenureBandCounts.map(a=>a.count),
-    {showValues:true, onClick: onClick('c-tenure', '年資', (e,label)=>{
+    {noRotate:true, showValues:true, onClick: onClick('c-tenure', '年資', (e,label)=>{
       const b = TENURE_BANDS.find(x=>x[0]===label); if(!b) return false;
       const t = tenureYears(e,asOf); return t>=b[1] && t<b[2];
     })});
   const gradeLabels = Object.keys(stats.gradeCounts).sort((a,b)=>Number(a)-Number(b));
   barChart('c-grade', gradeLabels.map(g=>g+'職等'), gradeLabels.map(k=>stats.gradeCounts[k]),
-    {showValues:true, onClick: onClick('c-grade', '職等', (e,label)=>(String(e.grade)+'職等')===label)});
+    {horizontal:true, showValues:true, onClick: onClick('c-grade', '職等', (e,label)=>(String(e.grade)+'職等')===label)});
 
   refreshActiveDrill('composition', stats);
+  syncCompositionRowHeights();
+}
+
+/** 「人力組成」頁的圓形圖卡片（含圖例）天生比純長條圖卡片高；CSS Grid 對兩列 auto 列高的計算
+ *  在 flex-grow 子元素牽涉其中時並不可靠（長條圖畫布本該用 flex-grow 長高填滿被撐高的卡片，
+ *  實測並不會生效，畫布仍卡在原本高度，多出來的高度變成卡片下方留白），導致每個長條圖 Y 軸
+ *  「0」刻度相對卡片底部的位置各自不同、看起來沒對齊。改為渲染後直接量測「圓形圖卡片」（正方形
+ *  ＋圖例，高度完全由自身內容決定、不受本函式影響）的實際高度當基準，把其餘 5 個長條圖卡片的
+ *  畫布區塊明確設成「基準高度－該卡片畫布以外佔用的高度」。基準必須只取圓形圖卡片、不能取
+ *  職種分布等本身也會被這支函式調整的卡片，否則每次重繪都會把上一次墊高的結果當基準疊加，
+ *  越算越高（不收斂）。 */
+function syncCompositionRowHeights(){
+  const targetIds = ['c-jobcat','c-worklocation','c-age','c-tenure','c-grade'];
+  targetIds.forEach(id=>{
+    const wrap = document.getElementById(id)?.closest('.chart-canvas-wrap');
+    if(wrap) wrap.style.height = '';
+  });
+  const referenceCards = ['c-gender','c-status','c-edu']
+    .map(id=>document.getElementById(id)?.closest('.chart-card'))
+    .filter(Boolean);
+  if(!referenceCards.length) return;
+  const targetCardHeight = Math.max(...referenceCards.map(c=>c.getBoundingClientRect().height));
+
+  targetIds.forEach(id=>{
+    const canvas = document.getElementById(id);
+    if(!canvas) return;
+    const wrap = canvas.closest('.chart-canvas-wrap');
+    const card = canvas.closest('.chart-card');
+    if(!wrap || !card) return;
+    const cardRect = card.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const bottomPadding = parseFloat(getComputedStyle(card).paddingBottom) || 0;
+    const wrapTopWithinCard = wrapRect.top - cardRect.top;
+    const targetWrapHeight = targetCardHeight - wrapTopWithinCard - bottomPadding;
+    if(targetWrapHeight > wrapRect.height) wrap.style.height = targetWrapHeight + 'px';
+  });
+  targetIds.forEach(id=>Chart.getChart(id)?.resize());
 }
 
 function renderMovement(stats){
-  lineChart('c-year-trend', stats.yearTrend.map(y=>y.label), stats.yearTrend.map(y=>y.headcount), PALETTE.accent, {showValues:true});
-  lineChart('c-month-trend', stats.monthHeadcountTrend.map(m=>m.label), stats.monthHeadcountTrend.map(m=>m.headcount), PALETTE.blue, {showValues:true});
-  lineChart('c-turnover-trend', stats.months.map(m=>m.label), stats.months.map(m=>m.rate), PALETTE.serious, {percent:true, showValues:true});
-  groupedBarChart('c-hire-resign', stats.months.map(m=>m.label),
-    [{label:'到職',data:stats.months.map(m=>m.hires)},{label:'離職',data:stats.months.map(m=>m.resigns)}],
+  // 全公司視角且選「全部事業部」時，六個趨勢圖表改用全公司原始員工資料計算，不再受部門代碼篩選
+  // 侷限（例如部門代碼對不到任何現有部門的員工，原本會被 filteredEmployees() 排除在外），
+  // 確保這六個圖表呈現的是公司實際總人數／到職／離職，而不是只算到部門代碼能對應得上的那些人。
+  // 下方「各部門年資與離職概況」表格不受影響，仍依部門／事業部歸戶列出，維持原本邏輯。
+  const useCompanyWide = currentDivisionFilter === 'ALL' && currentScope().level === 'company';
+  const trend = useCompanyWide ? computeStats(EMPLOYEES, new Date()) : stats;
+
+  lineChart('c-year-trend', trend.yearTrend.map(y=>y.label), trend.yearTrend.map(y=>y.headcount), PALETTE.accent, {showValues:true});
+  lineChart('c-month-trend', trend.monthHeadcountTrend.map(m=>m.label), trend.monthHeadcountTrend.map(m=>m.headcount), PALETTE.blue, {showValues:true});
+  lineChart('c-year-turnover-trend', trend.yearTurnoverTrend.map(y=>y.label), trend.yearTurnoverTrend.map(y=>y.rate), PALETTE.serious, {percent:true, showValues:true});
+  lineChart('c-turnover-trend', trend.months.map(m=>m.label), trend.months.map(m=>m.rate), PALETTE.serious, {percent:true, showValues:true});
+  groupedBarChart('c-year-hire-resign', trend.yearHireResign.map(y=>y.label),
+    [{label:'到職',data:trend.yearHireResign.map(y=>y.hires)},{label:'離職',data:trend.yearHireResign.map(y=>y.resigns)}],
+    [PALETTE.good, PALETTE.critical], {showValues:true});
+  groupedBarChart('c-hire-resign', trend.months.map(m=>m.label),
+    [{label:'到職',data:trend.months.map(m=>m.hires)},{label:'離職',data:trend.months.map(m=>m.resigns)}],
     [PALETTE.good, PALETTE.critical], {showValues:true});
 
   // 全部事業部視角時，「各部門年資與離職概況」改以事業部彙總資料呈現，欄位標題也隨之改為「事業部」。
@@ -2505,8 +2627,6 @@ const CHART_CATALOG = {
     'c-gender':      {label:'性別比例', canvas:'c-gender'},
     'c-status':      {label:'在職狀態分布', canvas:'c-status'},
     'c-edu':         {label:'最高學歷', canvas:'c-edu'},
-    'c-identity':    {label:'身份類別', canvas:'c-identity'},
-    'c-ethnic':      {label:'族群身分', canvas:'c-ethnic'},
     'c-jobcat':      {label:'職種分布', canvas:'c-jobcat'},
     'c-worklocation':{label:'工作地點', canvas:'c-worklocation'},
     'c-age':         {label:'年齡分布', canvas:'c-age'},
@@ -2514,11 +2634,13 @@ const CHART_CATALOG = {
     'c-grade':       {label:'職等分布', canvas:'c-grade'}
   }},
   movement: { tabId:'tab-movement', render:(stats,asOf)=>renderMovement(stats), items:{
-    'c-year-trend':    {label:'年度人力趨勢', canvas:'c-year-trend'},
-    'c-month-trend':   {label:'月份人力趨勢', canvas:'c-month-trend'},
-    'c-turnover-trend':{label:'月別離職率趨勢', canvas:'c-turnover-trend'},
-    'c-hire-resign':   {label:'每月到職／離職人數', canvas:'c-hire-resign'},
-    deptsummary:       {label:'各部門／事業部年資與離職概況', dom:'.dept-table-wrap', wrap:'.section-block'}
+    'c-year-trend':         {label:'年度人力趨勢', canvas:'c-year-trend'},
+    'c-month-trend':        {label:'月份人力趨勢', canvas:'c-month-trend'},
+    'c-year-turnover-trend':{label:'年度離職率趨勢', canvas:'c-year-turnover-trend'},
+    'c-turnover-trend':     {label:'月份離職率趨勢', canvas:'c-turnover-trend'},
+    'c-year-hire-resign':   {label:'每年到職／離職人數', canvas:'c-year-hire-resign'},
+    'c-hire-resign':        {label:'每月到職／離職人數', canvas:'c-hire-resign'},
+    deptsummary:            {label:'各部門／事業部年資與離職概況', dom:'.dept-table-wrap', wrap:'.section-block'}
   }},
   care: { tabId:'tab-care', render:(stats,asOf)=>renderCare(stats,asOf), items:{
     'c-bloodtype':{label:'血型分佈', canvas:'c-bloodtype'},
