@@ -833,6 +833,43 @@ function loadEmployees(cb){
   }).catch(()=>{ loadEmployeesLocal(); cb && cb(); });
 }
 function saveEmployees(){ localStorage.setItem(EMP_KEY, JSON.stringify(EMPLOYEES)); }
+/** 部門代碼標準化：修正兩種常見的部門代碼填寫誤差，需在 ORG_TREE 是最新組織架構後執行。
+ *  1. 部門代碼其實填的是「事業部代碼」（例如整批匯入時只填到事業部層級，未細分部門）：
+ *     在該事業部底下自動建立一個代碼與事業部相同的虛擬部門節點，讓這些員工能正確併入
+ *     事業部的人數／年資／離職率統計，同時在部門層級表格中獨立列出一行，方便之後人工比對。
+ *  2. 部門代碼是某個有效部門代碼的次分組（去掉字尾英文字母後能對應到一個有效部門代碼，
+ *     例如 3DW291A／3DW291B／3DW291C 皆為數據應用處 3DW291 的次分組），一律併入母部門統計。 */
+function normalizeDeptCodes(){
+  const divisions = ORG_TREE.divisions || DIVISIONS;
+  const departments = ORG_TREE.departments || DEPARTMENTS;
+  const divByCode = {};
+  divisions.forEach(dv=>{ divByCode[dv.code] = dv; });
+  const deptByCode = {};
+  departments.forEach(d=>{ deptByCode[d.code] = d; });
+
+  const usedDivCodes = new Set();
+  EMPLOYEES.forEach(e=>{
+    if(e.deptCode && !deptByCode[e.deptCode] && divByCode[e.deptCode]) usedDivCodes.add(e.deptCode);
+  });
+  usedDivCodes.forEach(code=>{
+    const virtualDept = { code, name: divByCode[code].name, divisionCode: code };
+    departments.push(virtualDept);
+    deptByCode[code] = virtualDept;
+  });
+
+  let changed = usedDivCodes.size > 0;
+  EMPLOYEES.forEach(e=>{
+    const code = e.deptCode;
+    if(!code || deptByCode[code]) return;
+    const base = code.slice(0, -1);
+    if(/[A-Za-z]$/.test(code) && deptByCode[base]){
+      e.deptCode = base;
+      e.deptName = base + ' ' + deptByCode[base].name;
+      changed = true;
+    }
+  });
+  if(changed) saveEmployees();
+}
 function resetDemoData(){
   if(!confirm('確定要清除目前資料並重置為示範資料嗎？（此操作不會影響已連接的 Google 試算表，僅重置本機資料）')) return;
   localStorage.removeItem(EMP_KEY);
@@ -959,11 +996,12 @@ function fmtYears(yrs){
 }
 function isActiveOn(emp, date){
   const start = fromISO(emp.tenureStart);
-  if(start>date) return false;
-  if(emp.employStatus==='離職' && emp.resignDate){
-    if(fromISO(emp.resignDate) < date) return false;
-  }
-  return true;
+  if(!start || start>date) return false;
+  // 在職狀態以「現在的員工資料」為準：現在標示在職者，往前回推視為自到職日起持續在職；
+  // 現在標示離職者，需有離職日期且晚於查詢日期才算當時仍在職；其餘（空白／未知狀態）一律不計入，
+  // 避免狀態欄位空白的資料被誤算成在職，導致跟「在職人數」KPI（僅計 employStatus==='在職'）對不上。
+  if(emp.employStatus === '離職') return !!emp.resignDate && fromISO(emp.resignDate) >= date;
+  return emp.employStatus === '在職';
 }
 function sameMonth(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
 
@@ -1054,7 +1092,7 @@ function computeStats(list, asOf){
     const monthEnd = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0, 23,59,59);
     const activeAtEnd = list.filter(e=>isActiveOn(e, monthEnd)).length;
     const resigns = list.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), mDate)).length;
-    const hires = list.filter(e=>sameMonth(fromISO(e.tenureStart), mDate)).length;
+    const hires = list.filter(e=>e.tenureStart && sameMonth(fromISO(e.tenureStart), mDate)).length;
     const avgHC = activeAtEnd + resigns/2;
     const rate = avgHC>0 ? resigns/avgHC*100 : 0;
     months.push({label:`${mDate.getMonth()+1}月`, headcount:activeAtEnd, resigns, hires, rate:+rate.toFixed(1)});
@@ -1079,7 +1117,7 @@ function computeStats(list, asOf){
     return d.getMonth()===asOf.getMonth() && d.getDate()===asOf.getDate() && asOf.getFullYear()>d.getFullYear();
   });
 
-  const newHiresThisMonth = list.filter(e=>sameMonth(fromISO(e.tenureStart), asOf)).length;
+  const newHiresThisMonth = list.filter(e=>e.tenureStart && sameMonth(fromISO(e.tenureStart), asOf)).length;
 
   const avgAge = active.length ? active.reduce((s,e)=>s+ageOn(e.birthday,asOf),0)/active.length : 0;
   const avgTenureAll = active.length ? active.reduce((s,e)=>s+tenureYears(e,asOf),0)/active.length : 0;
@@ -1409,6 +1447,7 @@ function enterApp(){
   const proceedWhenReady = ()=>{
     pending--;
     if(pending > 0) return;
+    normalizeDeptCodes();
     currentDivisionFilter = 'ALL';
     currentDeptFilter = 'ALL';
     populateOrgFilters();
