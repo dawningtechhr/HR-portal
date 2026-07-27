@@ -292,8 +292,10 @@ tr:hover td{background:var(--paper)}
 .bday-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.75rem;margin-top:.9rem}
 .bday-card{background:var(--paper2);border-radius:var(--radius);padding:.75rem .9rem;display:flex;align-items:center;gap:.6rem}
 .bday-card .bc-icon{font-size:1.3rem}
-.bday-card .bc-name{font-size:.82rem;font-weight:700;color:var(--ink)}
+.bday-card .bc-name{font-size:.82rem;font-weight:700;color:var(--ink);display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap}
+.bday-card .bc-dept{font-size:.7rem;font-weight:400;color:var(--ink3)}
 .bday-card .bc-meta{font-size:.7rem;color:var(--ink3);margin-top:.1rem}
+.bday-card .bc-num{color:var(--red);font-weight:700}
 .bday-empty{padding:2rem;text-align:center;color:var(--ink3);font-size:.85rem}
 
 .dept-table-wrap{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);overflow:hidden;margin-top:1.25rem}
@@ -418,6 +420,15 @@ tr:hover td{background:var(--paper)}
       </div>
       <div class="charts-grid-2">
         <div class="chart-card span-2"><h3 id="dept-chart-title">各部門人數</h3><div class="cc-sub" id="dept-chart-sub">在職員工，依人數排序</div><div class="chart-canvas-wrap tall"><canvas id="c-dept"></canvas></div></div>
+      </div>
+
+      <div class="section-block">
+        <h2>今日壽星</h2>
+        <div id="today-bday-list" class="bday-grid"></div>
+      </div>
+      <div class="section-block">
+        <h2>今日滿週年員工</h2>
+        <div id="today-anniv-list" class="bday-grid"></div>
       </div>
     </div>
 
@@ -1216,6 +1227,16 @@ function computeStats(list, asOf){
     .filter(e=>fromISO(e.birthday).getMonth()===asOf.getMonth())
     .sort((a,b)=>fromISO(a.birthday).getDate()-fromISO(b.birthday).getDate());
 
+  const todayBirthdays = active.filter(e=>{
+    const d = fromISO(e.birthday);
+    return d.getMonth()===asOf.getMonth() && d.getDate()===asOf.getDate();
+  });
+  // 「滿週年」指到職日的月/日與今日相同，且已滿至少一個完整年度（非到職當天）。
+  const todayAnniversaries = active.filter(e=>{
+    const d = fromISO(e.tenureStart);
+    return d.getMonth()===asOf.getMonth() && d.getDate()===asOf.getDate() && asOf.getFullYear()>d.getFullYear();
+  });
+
   const newHiresThisMonth = list.filter(e=>sameMonth(fromISO(e.tenureStart), asOf)).length;
 
   const avgAge = active.length ? active.reduce((s,e)=>s+ageOn(e.birthday,asOf),0)/active.length : 0;
@@ -1234,7 +1255,7 @@ function computeStats(list, asOf){
     ethnicCounts: count(active,'ethnic'),
     workLocationCounts: count(active,'workLocation'),
     ageBandCounts, tenureBandCounts, deptStats, divisionStats, months, yearTrend, monthHeadcountTrend,
-    zodiacCounts, cnZodiacCounts, birthMonthCounts, thisMonthBirthdays
+    zodiacCounts, cnZodiacCounts, birthMonthCounts, thisMonthBirthdays, todayBirthdays, todayAnniversaries
   };
 }
 
@@ -1626,7 +1647,7 @@ function renderAll(){
 
   renderKPI(stats);
   const activeTab = document.querySelector('.tab-content.active').id;
-  if(activeTab==='tab-overview') renderOverview(stats);
+  if(activeTab==='tab-overview') renderOverview(stats, asOf);
   if(activeTab==='tab-composition') renderComposition(stats, asOf);
   if(activeTab==='tab-movement') renderMovement(stats);
   if(activeTab==='tab-care') renderCare(stats, asOf);
@@ -1768,7 +1789,19 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
   }
 }
 
-function renderOverview(stats){
+/** 依 items 填入 .bday-grid 容器（無資料時顯示 emptyText），供今日壽星／今日滿週年員工共用。 */
+function renderNameGrid(elId, items, emptyText, cardHtmlFn){
+  const el = document.getElementById(elId);
+  el.parentElement.querySelector('.bday-empty')?.remove();
+  if(!items.length){
+    el.innerHTML = '';
+    el.insertAdjacentHTML('afterend', `<div class="bday-empty">${emptyText}</div>`);
+  } else {
+    el.innerHTML = items.map(cardHtmlFn).join('');
+  }
+}
+
+function renderOverview(stats, asOf){
   // 目前選在「全部事業部」且範圍內確實有多個事業部時，改以事業部彙總人數呈現；否則維持各部門明細。
   const showDivisions = currentDivisionFilter === 'ALL' && currentScope().divisions.length > 1;
   const titleEl = document.getElementById('dept-chart-title');
@@ -1811,6 +1844,15 @@ function renderOverview(stats){
     }
     renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined);
   }
+
+  renderNameGrid('today-bday-list', stats.todayBirthdays, '今日無壽星', e=>{
+    const age = ageOn(e.birthday, asOf);
+    return `<div class="bday-card"><div class="bc-icon">🎂</div><div><div class="bc-name">${e.name}<span class="bc-dept">${e.deptName.split(' ').slice(1).join(' ')}</span></div><div class="bc-meta">現年 <span class="bc-num">${age}</span> 歲 · ${zodiacOf(e.birthday)}</div></div></div>`;
+  });
+  renderNameGrid('today-anniv-list', stats.todayAnniversaries, '今日無滿週年員工', e=>{
+    const years = asOf.getFullYear() - fromISO(e.tenureStart).getFullYear();
+    return `<div class="bday-card"><div class="bc-icon">🎉</div><div><div class="bc-name">${e.name}<span class="bc-dept">${e.deptName.split(' ').slice(1).join(' ')}</span></div><div class="bc-meta">到職滿 <span class="bc-num">${years}</span> 週年</div></div></div>`;
+  });
 }
 
 function renderComposition(stats, asOf){
@@ -1913,7 +1955,7 @@ function renderCare(stats, asOf){
     listEl.parentElement.querySelector('.bday-empty')?.remove();
     listEl.innerHTML = stats.thisMonthBirthdays.map(e=>{
       const d = fromISO(e.birthday);
-      return `<div class="bday-card"><div class="bc-icon">🎂</div><div><div class="bc-name">${e.name}</div><div class="bc-meta">${e.deptName.split(' ').slice(1).join(' ')} · ${pad2(d.getMonth()+1)}/${pad2(d.getDate())} · ${zodiacOf(e.birthday)}</div></div></div>`;
+      return `<div class="bday-card"><div class="bc-icon">🎂</div><div><div class="bc-name">${e.name}<span class="bc-dept">${e.deptName.split(' ').slice(1).join(' ')}</span></div><div class="bc-meta"><span class="bc-num">${pad2(d.getMonth()+1)}/${pad2(d.getDate())}</span> · ${zodiacOf(e.birthday)}</div></div></div>`;
     }).join('');
   }
 
@@ -2189,7 +2231,7 @@ async function downloadReport(source, format){
    下載時會依序切到每個需要的分頁、觸發渲染、擷取圖片後，最後再切回原本所在的分頁。
    ══════════════════════════════════════════════════════════════ */
 const CHART_CATALOG = {
-  overview: { tabId:'tab-overview', render:(stats,asOf)=>renderOverview(stats), items:{
+  overview: { tabId:'tab-overview', render:(stats,asOf)=>renderOverview(stats,asOf), items:{
     kpi:       {label:'KPI 總覽卡片', dom:'.kpi-grid'},
     orgchart:  {label:'組織圖', dom:'#orgchart', wrap:'.chart-card'},
     deptchart: {label:'各部門／各事業部人數', canvas:'c-dept'}
