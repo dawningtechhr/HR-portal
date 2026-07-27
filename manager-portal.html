@@ -207,6 +207,8 @@ tr:hover td{background:var(--paper)}
    對齊到瀏覽器視窗的捲動位置，達到永遠固定在畫面最上方的效果。 */
 .admin-main{overflow-y:visible}
 .modal-form input:disabled{background:var(--paper2);color:var(--ink3);cursor:not-allowed}
+.page-title-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.25rem}
+.page-title-row .page-title{margin-bottom:0}
 .topbar{background:#fff;border-bottom:1px solid var(--paper3);padding:.85rem 2.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:20}
 .topbar .tb-title{font-size:.95rem;font-weight:700;color:var(--ink);margin-right:auto}
 .topbar .tb-asof{font-size:.75rem;color:var(--ink3);background:var(--paper2);padding:.35rem .75rem;border-radius:12px}
@@ -222,6 +224,7 @@ tr:hover td{background:var(--paper)}
 .kpi-card{background:#fff;border:1px solid var(--paper3);border-radius:var(--radius-lg);padding:1rem 1.1rem}
 .kpi-card .kv{font-size:1.55rem;font-weight:700;line-height:1.1}
 .kpi-card .kv.red{color:var(--red)}.kpi-card .kv.green{color:var(--green)}.kpi-card .kv.blue{color:var(--blue)}.kpi-card .kv.ink{color:var(--ink)}.kpi-card .kv.accent{color:var(--accent2)}
+.kpi-card #kpi-tenure{font-size:1.25rem;line-height:1.705rem;white-space:nowrap}
 .kpi-card .kl{font-size:.72rem;color:var(--ink3);margin-top:.3rem}
 .kpi-card .kd{font-size:.68rem;color:var(--ink3);margin-top:.15rem}
 
@@ -476,7 +479,7 @@ tr:hover td{background:var(--paper)}
     <!-- ── 人力組成 ── -->
     <div id="tab-composition" class="tab-content">
       <div class="page-title">人力組成</div>
-      <div class="page-sub">參考全球大型企業常用之人力結構分析構面 · 點選圖表中的任一指標，可於下方顯示符合條件的員工資料</div>
+      <div class="page-sub">點選圖表中的任一指標，可於下方顯示符合條件的員工資料</div>
 
       <div class="charts-grid-4">
         <div class="chart-card"><h3>性別比例</h3><div class="cc-sub">在職員工</div><div class="chart-canvas-wrap square donut"><canvas id="c-gender"></canvas></div><div class="donut-legend" id="c-gender-legend"></div></div>
@@ -515,7 +518,10 @@ tr:hover td{background:var(--paper)}
 
     <!-- ── 異動與年資 ── -->
     <div id="tab-movement" class="tab-content">
-      <div class="page-title">人力異動與年資</div>
+      <div class="page-title-row">
+        <div class="page-title">人力異動與年資</div>
+        <button class="btn-secondary btn-sm" onclick="openTurnoverHelp()">📖 離職率計算與判讀說明</button>
+      </div>
       <div class="page-sub">離職率採年化計算：近12個月離職人數 ÷ 期間平均在職人數</div>
 
       <div class="charts-grid-2">
@@ -618,6 +624,40 @@ tr:hover td{background:var(--paper)}
       </div>
 </div>
 
+
+<!-- ═══════ 離職率說明 MODAL ═══════ -->
+<div class="modal-overlay" id="modal-turnover-help">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head"><h3>離職率計算與判讀說明</h3><button class="btn-close" onclick="closeTurnoverHelp()">✕</button></div>
+    <div class="modal-body">
+      <h4 style="font-size:.95rem;margin-bottom:.4rem">月份離職率趨勢（逐月，近12個月）</h4>
+      <div class="form-hint" style="margin-bottom:.5rem">
+        分子：當月離職人數<br>
+        分母：當月月底在職人數 ＋ 當月離職人數 ÷ 2（概略估算當月平均在職人數）<br>
+        月份離職率 ＝ 當月離職人數 ÷ 分母 × 100%
+      </div>
+      <p style="font-size:.85rem;color:var(--ink2);margin-bottom:1.1rem">只反映「單一個月」的離職狀況，分母估算方式較簡化，樣本數小、容易受一兩人離職影響而大幅波動，適合用來觀察哪個月份特別異常（例如年後離職潮），不適合用來評斷整體人力體質。</p>
+
+      <h4 style="font-size:.95rem;margin-bottom:.4rem">年度離職率趨勢（逐年，近10年）</h4>
+      <div class="form-hint" style="margin-bottom:.5rem">
+        分子：該年度（今年則計算至目前月份）累計離職人數<br>
+        分母：該年度內每個月「月底在職人數」的平均值<br>
+        年度離職率 ＝ 該年度累計離職人數 ÷ 分母 × 100%
+      </div>
+      <p style="font-size:.85rem;color:var(--ink2);margin-bottom:1.1rem">反映「整個年度」累計的離職狀況，分母以全年逐月平均計算較為穩健，算法與總覽 KPI 卡片、各部門／事業部離職率一致（只是把「近12個月」換成「該年度1～12月」），適合用來跨年度比較、追蹤長期趨勢是否改善。</p>
+
+      <h4 style="font-size:.95rem;margin-bottom:.4rem">兩者差異</h4>
+      <p style="font-size:.85rem;color:var(--ink2);margin-bottom:1.1rem">月份離職率只統計「單一個月」、分母用簡化估算；年度離職率統計「整個年度」累計，分母用全年平均。因為年度是把12個月的離職人數累加起來，數字自然會比任何單一月份大上許多，兩者是不同時間尺度的指標，不能直接把月份離職率乘以12去對照年度離職率。</p>
+
+      <h4 style="font-size:.95rem;margin-bottom:.4rem">如何判讀</h4>
+      <p style="font-size:.85rem;color:var(--ink2);margin-bottom:0">
+        1. 想找「異常月份」（例如某月離職集中發生），看月份離職率趨勢。<br>
+        2. 想看「整體趨勢是變好還是變差」、做年度目標追蹤或跨年比較，看年度離職率趨勢。<br>
+        3. 今年／本月的資料點尚未走完整個期間，會隨著時間持續變動，現在看到的數字只是「目前為止」的累計狀況，不是最終定案的數字。
+      </p>
+    </div>
+  </div>
+</div>
 
 
 <script>const PORTAL_MODE = 'manager';</script>
@@ -2709,6 +2749,8 @@ function openAccountModal(id){
   document.getElementById('modal-account').classList.add('open');
 }
 function closeAccountModal(){ document.getElementById('modal-account').classList.remove('open'); }
+function openTurnoverHelp(){ document.getElementById('modal-turnover-help').classList.add('open'); }
+function closeTurnoverHelp(){ document.getElementById('modal-turnover-help').classList.remove('open'); }
 function toggleScopeUI(){
   const isAdmin = document.getElementById('acc-role').value==='admin';
   document.getElementById('acc-scope-wrap').style.display = isAdmin ? 'none' : '';
