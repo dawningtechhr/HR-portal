@@ -265,6 +265,10 @@ tr:hover td{background:var(--paper)}
 .oc-box{background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--radius);padding:.5rem .85rem;font-size:.76rem;font-weight:700;color:var(--ink);text-align:center;white-space:nowrap;line-height:1.3}
 .oc-root{display:flex;flex-direction:column;align-items:center}
 .oc-root .oc-box{background:var(--accent);color:#fff;border-color:var(--accent2)}
+/* 主管同時管理多個事業部時，並排顯示各事業部自己完整展開的組織圖（一左一右），
+   每個 .oc-cluster 都是一棵獨立的小樹（事業部根節點＋其部門），共用同一份 .oc-root／.oc-box 樣式。 */
+.oc-multi{display:flex;flex-direction:row;justify-content:center;align-items:flex-start;gap:2.5rem;flex-wrap:wrap;width:100%}
+.oc-cluster{display:flex;flex-direction:column;align-items:center}
 .oc-root-stem{width:2px;height:18px;background:var(--paper3)}
 .oc-children{display:flex;justify-content:center;flex-wrap:wrap;position:relative;padding-top:18px;margin-top:0}
 .oc-children::before{content:'';position:absolute;top:0;left:8%;right:8%;height:2px;background:var(--paper3)}
@@ -288,6 +292,11 @@ tr:hover td{background:var(--paper)}
 .oc-tier3-bridge{position:absolute;height:2px;background:var(--paper3)}
 .oc-tier3-label{font-size:.7rem;color:var(--ink3);margin:0}
 .oc-tier3 .oc-box{background:#fff;font-weight:600;font-size:.72rem;padding:.4rem .7rem}
+/* 總經理室：浮動於根節點右側的獨立方框，大小比照部門層級方框（與 .oc-tier3 .oc-box 一致），
+   實際座標由 JS 於渲染後量測根節點方框位置動態設定，不影響下方樹狀結構的置中排版。 */
+.oc-gm-office{position:absolute}
+.oc-gm-office .oc-box{background:#fff;font-weight:600;font-size:.72rem;padding:.4rem .7rem}
+.oc-gm-office-connector{position:absolute;height:2px;background:var(--paper3)}
 .oc-tier3.oc-children{justify-content:flex-end}
 .donut-legend .dl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 
@@ -1203,8 +1212,10 @@ function computeStats(list, asOf){
     return {label,count:c};
   });
 
+  // normalizeDeptCodes() 補的「事業部直屬、未分部門」虛擬部門節點不列入部門層級的呈現
+  // （長條圖／表格／組織圖都不顯示這一行），這些人數已經算進所屬事業部的總人數裡。
   const deptStats = (ORG_TREE.departments || DEPARTMENTS)
-    .filter(d=>active.some(e=>e.deptCode===d.code) || list.some(e=>e.deptCode===d.code))
+    .filter(d=>!d.virtual && (active.some(e=>e.deptCode===d.code) || list.some(e=>e.deptCode===d.code)))
     .map(d=>{
       const deptActive = active.filter(e=>e.deptCode===d.code);
       const deptResigned12 = resigned12.filter(e=>e.deptCode===d.code);
@@ -1736,11 +1747,68 @@ function orgChartManagerMap(){
   return map;
 }
 
+/** 主管同時管理多個事業部時（責任範圍橫跨事業部層級），並排顯示每個事業部各自完整展開的組織圖
+ *  （事業部方框＋其下各部門方框），而不是把多個事業部壓縮成同一棵樹的第二層。
+ *  divisions：{code, name, headcount}[]，即該主管可視範圍內的事業部清單；
+ *  deptStats：全部部門的人數統計（會依各自的 divisionCode 分組到對應事業部底下）；
+ *  highlightCode：若提供，該代碼對應的部門方框會用淺粉紅色標示目前的部門篩選。 */
+function renderMultiDivisionOrgChart(divisions, deptStats, highlightCode){
+  const el = document.getElementById('orgchart');
+  if(!el) return;
+  const mgrMap = orgChartManagerMap();
+  const boxContent = (n)=>{
+    const m = mgrMap[n.code];
+    const mgrHTML = m ? `<span class="oc-manager">${m.name}${m.title?(' '+m.title):''}</span>` : '';
+    return `${n.name}${mgrHTML}<span class="oc-count">${n.headcount} 人</span>`;
+  };
+  const boxClass = (n)=> 'oc-box' + (highlightCode && n.code === highlightCode ? ' oc-box-highlight' : '');
+  const deptDivCode = {};
+  (ORG_TREE.departments || DEPARTMENTS).forEach(d=>{ deptDivCode[d.code] = d.divisionCode; });
+
+  const clustersHTML = divisions.map(div=>{
+    const depts = deptStats.filter(d=>deptDivCode[d.code]===div.code).sort((a,b)=>b.headcount-a.headcount);
+    const childrenHTML = depts.map(n=>`
+      <div class="oc-child">
+        <div class="${boxClass(n)}">${boxContent(n)}</div>
+      </div>`).join('');
+    return `
+      <div class="oc-cluster">
+        <div class="oc-root">
+          <div class="${boxClass(div)}">${boxContent(div)}</div>
+          <div class="oc-root-stem"></div>
+        </div>
+        <div class="oc-children ${depts.length<=1?'oc-single':''}">${childrenHTML}</div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="oc-multi">${clustersHTML}</div>`;
+
+  // 讓所有事業部根節點與部門方框的寬高統一，維持跟單一組織圖一致的視覺效果。
+  const rootBoxes = [...el.querySelectorAll('.oc-cluster > .oc-root .oc-box')];
+  const childBoxes = [...el.querySelectorAll('.oc-cluster > .oc-children .oc-box')];
+  const allBoxes = [...rootBoxes, ...childBoxes];
+  if(allBoxes.length){
+    let maxW = 0, maxH = 0;
+    allBoxes.forEach(b=>{ const r=b.getBoundingClientRect(); maxW=Math.max(maxW,r.width); maxH=Math.max(maxH,r.height); });
+    allBoxes.forEach(b=>{
+      b.style.boxSizing = 'border-box';
+      b.style.width = maxW + 'px';
+      b.style.height = maxH + 'px';
+      b.style.display = 'flex';
+      b.style.flexDirection = 'column';
+      b.style.alignItems = 'center';
+      b.style.justifyContent = 'center';
+    });
+  }
+}
+
 /** 純 CSS 畫的組織圖：根節點＋一排子節點（事業部／部門，名稱下方顯示負責主管姓名職稱，人數在第三行），可選再加第三層（例如總經理直屬部門）。
  *  rootCode：若提供，會依此代碼查出對應主管並在根節點名稱下方顯示其姓名職稱；若職稱文字與根節點名稱相同（例如「總經理」根節點對到職稱也是「總經理」的人），
  *  則只顯示姓名，避免重複顯示同樣的文字。
- *  highlightCode：若提供，該代碼對應的方框會用淺粉紅色填滿，用來標示目前部門篩選選到的那個部門。 */
-function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode){
+ *  highlightCode：若提供，該代碼對應的方框會用淺粉紅色填滿，用來標示目前部門篩選選到的那個部門。
+ *  gmOfficeCount：若提供（非 null），在根節點方框右側加一個獨立的「總經理室」方框（大小比照部門層級方框），
+ *  用來呈現部門代碼直接填 3DA100（總經理直屬）但不屬於人資營運處等任何實際部門的人數（已扣除總經理本人）。 */
+function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode, gmOfficeCount){
   const el = document.getElementById('orgchart');
   if(!el) return;
   const mgrMap = orgChartManagerMap();
@@ -1772,11 +1840,15 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
       <div class="oc-tier3-outer-drop"></div>
       <div class="oc-tier3-bridge"></div>`;
   }
+  const gmOfficeHTML = gmOfficeCount != null
+    ? `<div class="oc-gm-office"><div class="oc-box">總經理室<span class="oc-count">${gmOfficeCount} 人</span></div></div><div class="oc-gm-office-connector"></div>`
+    : '';
   el.innerHTML = `
     <div class="oc-root">
       <div class="oc-box">${rootLabel}${rootMgrHTML}<span class="oc-count">${rootCount} 人</span></div>
       <div class="oc-root-stem"></div>
     </div>
+    ${gmOfficeHTML}
     <div class="oc-children ${nodes.length<=1?'oc-single':''}">${childrenHTML}</div>
     ${tier3HTML}
   `;
@@ -1802,6 +1874,27 @@ function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightC
         b.style.alignItems = 'center';
         b.style.justifyContent = 'center';
       });
+    }
+  }
+  if(gmOfficeCount != null){
+    // 總經理室方框浮動於根節點右側，不影響下方事業部／部門列的置中排版，故用絕對定位，
+    // 渲染後量測根節點方框的實際位置再貼齊其右側、垂直置中對齊；兩個方框之間補一條橫線相連，
+    // 顏色與其他連接線一致。
+    const gmOfficeEl = el.querySelector('.oc-gm-office');
+    const gmConnector = el.querySelector('.oc-gm-office-connector');
+    const rootBoxEl2 = el.querySelector('.oc-root .oc-box');
+    if(gmOfficeEl && gmConnector && rootBoxEl2){
+      const orgRect = el.getBoundingClientRect();
+      const rootRect = rootBoxEl2.getBoundingClientRect();
+      const gmBoxRect = gmOfficeEl.querySelector('.oc-box').getBoundingClientRect();
+      const gmLeft = rootRect.right - orgRect.left + 16;
+      const gmTop = rootRect.top - orgRect.top + (rootRect.height - gmBoxRect.height)/2;
+      gmOfficeEl.style.left = gmLeft + 'px';
+      gmOfficeEl.style.top = gmTop + 'px';
+
+      gmConnector.style.left = (rootRect.right - orgRect.left) + 'px';
+      gmConnector.style.top = (rootRect.top - orgRect.top + rootRect.height/2) + 'px';
+      gmConnector.style.width = (gmLeft - (rootRect.right - orgRect.left)) + 'px';
     }
   }
   if(tier3 && tier3.length){
@@ -1881,14 +1974,6 @@ function renderNameGrid(elId, items, emptyText, cardHtmlFn){
   }
 }
 
-/** 組織圖方框不需要顯示 normalizeDeptCodes() 補的「事業部直屬、未分部門」虛擬部門節點
- *  （這類人已經算進事業部總人數了，圖上不需要再多一個跟事業部同名的方框）；
- *  部門年資／離職概況表格與長條圖仍會列出，方便追蹤，不受此過濾影響。 */
-function excludeVirtualDepts(list){
-  const virtualCodes = new Set((ORG_TREE.departments || DEPARTMENTS).filter(d=>d.virtual).map(d=>d.code));
-  return list.filter(d=>!virtualCodes.has(d.code));
-}
-
 function renderOverview(stats, asOf){
   // 目前選在「全部事業部」且範圍內確實有多個事業部時，改以事業部彙總人數呈現；否則維持各部門明細。
   const showDivisions = currentDivisionFilter === 'ALL' && currentScope().divisions.length > 1;
@@ -1906,12 +1991,17 @@ function renderOverview(stats, asOf){
       const GM_DIV_CODE = '3DA100';
       const tier2 = divSorted.filter(d=>d.code !== GM_DIV_CODE);
       const gmDeptCodes = new Set((ORG_TREE.departments||DEPARTMENTS).filter(d=>d.divisionCode===GM_DIV_CODE).map(d=>d.code));
-      const tier3 = excludeVirtualDepts(stats.deptStats.filter(d=>gmDeptCodes.has(d.code))).sort((a,b)=>b.headcount-a.headcount);
+      const tier3 = stats.deptStats.filter(d=>gmDeptCodes.has(d.code)).sort((a,b)=>b.headcount-a.headcount);
       orgSubEl.textContent = '總經理 → 各事業部／直屬部門';
-      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE);
+      // 總經理室：部門代碼直接填 3DA100（不屬於人資營運處等任何實際部門）的人，扣除總經理本人後
+      // 獨立呈現在根節點右側，而不是併入下方的部門明細列表。
+      const gmOfficeCount = Math.max(0, stats.active.filter(e=>e.deptCode===GM_DIV_CODE).length - 1);
+      renderOrgChart('總經理', stats.activeCount, tier2, tier3, GM_DIV_CODE, undefined, gmOfficeCount);
     } else {
-      orgSubEl.textContent = '責任範圍 → 各事業部';
-      renderOrgChart('責任範圍', stats.activeCount, divSorted);
+      // 主管同時管理多個事業部：並排顯示各事業部自己完整展開的組織圖（一左一右），
+      // 而不是把多個事業部壓成同一棵樹的第二層方框。
+      orgSubEl.textContent = '責任範圍 → 各事業部（分別展開部門）';
+      renderMultiDivisionOrgChart(divSorted, stats.deptStats, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined);
     }
   } else {
     const deptSorted = stats.deptStats.slice().sort((a,b)=>b.headcount-a.headcount);
@@ -1924,13 +2014,19 @@ function renderOverview(stats, asOf){
     orgSubEl.textContent = rootLabel+' → 各部門';
     // 組織圖固定呈現整個事業部（不受部門篩選影響）：若目前另外選了單一部門，改用忽略部門篩選的
     // 統計資料重新計算，避免組織圖的事業部人數只算到被篩選的那一個部門。
-    let orgDeptSorted = deptSorted, orgActiveCount = stats.activeCount;
+    let orgDeptSorted = deptSorted, orgActiveCount = stats.activeCount, orgActive = stats.active;
     if(currentDeptFilter !== 'ALL'){
       const orgStats = computeStats(divisionScopedEmployees(), new Date());
       orgDeptSorted = orgStats.deptStats.slice().sort((a,b)=>b.headcount-a.headcount);
       orgActiveCount = orgStats.activeCount;
+      orgActive = orgStats.active;
     }
-    renderOrgChart(rootLabel, orgActiveCount, excludeVirtualDepts(orgDeptSorted), undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined);
+    // 總經理直屬部門視角下，同樣把部門代碼直接填 3DA100 的人（扣除總經理本人）獨立呈現在
+    // 根節點右側的「總經理室」方框，而不是併入下方的部門明細列表。
+    const gmOfficeCount = currentDivisionFilter === '3DA100'
+      ? Math.max(0, orgActive.filter(e=>e.deptCode==='3DA100').length - 1)
+      : undefined;
+    renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined, gmOfficeCount);
   }
 
   renderNameGrid('today-bday-list', stats.todayBirthdays, '今日無壽星', e=>{
