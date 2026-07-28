@@ -209,6 +209,8 @@ tr:hover td{background:var(--paper)}
 .modal-form input:disabled{background:var(--paper2);color:var(--ink3);cursor:not-allowed}
 .page-title-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.25rem}
 .page-title-row .page-title{margin-bottom:0}
+.notify-group-title{font-weight:700;font-size:.78rem;color:var(--ink2);margin-top:.7rem;padding-top:.6rem;border-top:1px solid var(--paper3)}
+.notify-group-title:first-child{margin-top:0;padding-top:0;border-top:none}
 .topbar{background:#fff;border-bottom:1px solid var(--paper3);padding:.85rem 2.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:20}
 .topbar .tb-title{font-size:.95rem;font-weight:700;color:var(--ink);margin-right:auto}
 .topbar .tb-asof{font-size:.75rem;color:var(--ink3);background:var(--paper2);padding:.35rem .75rem;border-radius:12px}
@@ -879,6 +881,7 @@ const DEFAULT_ACCOUNTS = [
 
 const ACC_KEY = 'hr_dash_accounts_v1';
 const EMP_KEY = 'hr_dash_employees_v1';
+const NOTIFY_KEY = 'hr_dash_notify_settings_v1';
 const SESSION_KEY = 'hr_dash_session_v1';
 
 /* ---------- Google Apps Script 呼叫小工具 ----------
@@ -1572,6 +1575,8 @@ function enterApp(){
   if(navAdmin) navAdmin.style.display = currentUser.role==='admin' ? '' : 'none';
   const navChartDownload = document.getElementById('nav-chartdownload');
   if(navChartDownload) navChartDownload.style.display = currentUser.role==='admin' ? '' : 'none';
+  const navNotify = document.getElementById('nav-notify');
+  if(navNotify) navNotify.style.display = currentUser.role==='admin' ? '' : 'none';
 
   const asOf = new Date();
   document.getElementById('tb-asof').textContent = `資料基準日：${asOf.getFullYear()}/${pad2(asOf.getMonth()+1)}/${pad2(asOf.getDate())}`;
@@ -1671,7 +1676,7 @@ function orgChartGoToDepartment(code){
 }
 
 function switchTab(tabId){
-  if((tabId==='tab-admin' || tabId==='tab-chartdownload') && (!currentUser || currentUser.role!=='admin')) tabId='tab-overview';
+  if((tabId==='tab-admin' || tabId==='tab-chartdownload' || tabId==='tab-notify') && (!currentUser || currentUser.role!=='admin')) tabId='tab-overview';
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.tab===tabId));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id===tabId));
   requestAnimationFrame(()=>renderAll());
@@ -1694,6 +1699,7 @@ function renderAll(){
   if(activeTab==='tab-care') renderCare(stats, asOf);
   if(activeTab==='tab-directory') renderDirectory();
   if(activeTab==='tab-admin' && currentUser.role==='admin'){ renderAdminList(); renderFieldLegend(); renderGSUrlDisplay(); }
+  if(activeTab==='tab-notify' && currentUser.role==='admin'){ renderNotifySettings(); }
 }
 
 function renderKPI(stats){
@@ -2695,7 +2701,7 @@ function renderAdminList(){
     }).join('、');
     const metaExtra = a.role==='admin'
       ? (a.email ? `　｜　Email：${a.email}` : '')
-      : `　｜　${a.dept||'—'} ${a.title||''}`.trim();
+      : `　｜　${a.dept||'—'} ${a.title||''}`.trim() + (a.email ? `　｜　Email：${a.email}` : '');
     return `
     <div class="admin-row">
       <div class="admin-av">${a.name.slice(-2,-1)||a.name.slice(0,1)}</div>
@@ -2754,7 +2760,6 @@ function closeTurnoverHelp(){ document.getElementById('modal-turnover-help').cla
 function toggleScopeUI(){
   const isAdmin = document.getElementById('acc-role').value==='admin';
   document.getElementById('acc-scope-wrap').style.display = isAdmin ? 'none' : '';
-  document.getElementById('acc-email-wrap').style.display = isAdmin ? '' : 'none';
   document.getElementById('acc-dept-wrap').style.display = isAdmin ? 'none' : '';
   document.getElementById('acc-title-wrap').style.display = isAdmin ? 'none' : '';
 
@@ -2795,7 +2800,7 @@ function saveAccount(){
   const dup = list.find(a=>a.id!==id && String(a.username).toLowerCase()===String(username).toLowerCase());
   if(dup){ errEl.textContent='此帳號已存在，請使用其他帳號'; errEl.style.display='block'; return; }
 
-  const extra = role==='admin' ? {email} : {dept, title};
+  const extra = role==='admin' ? {email} : {dept, title, email};
   const applyLocal = (savedId)=>{
     if(id){
       const idx = list.findIndex(a=>a.id===id);
@@ -2834,6 +2839,118 @@ function deleteAccount(id){
   } else {
     applyLocal();
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   通知設定：每日壽星／滿週年 Email 通知（勾選主管＋寄送時間，實際寄信由 Code.gs 定時觸發器執行）
+   ══════════════════════════════════════════════════════════════ */
+function getNotifySettingsLocal(){
+  const raw = localStorage.getItem(NOTIFY_KEY);
+  return raw ? JSON.parse(raw) : { hour:8, minute:30, managerIds:[] };
+}
+function setNotifySettingsLocal(s){ localStorage.setItem(NOTIFY_KEY, JSON.stringify(s)); }
+
+function renderNotifySettings(){
+  const accounts = getAccounts();
+  const admins = accounts.filter(a=>a.role==='admin');
+  const managers = accounts.filter(a=>a.role==='manager');
+  const divisions = ORG_TREE.divisions || DIVISIONS;
+  const departments = ORG_TREE.departments || DEPARTMENTS;
+  const divByCode = {}; divisions.forEach(d=>{ divByCode[d.code]=d; });
+  const deptByCode = {}; departments.forEach(d=>{ deptByCode[d.code]=d; });
+
+  const listEl = document.getElementById('notify-manager-list');
+  const hourSel = document.getElementById('notify-hour');
+  const minSel = document.getElementById('notify-minute');
+  if(!hourSel.options.length){
+    hourSel.innerHTML = Array.from({length:24},(_,h)=>`<option value="${h}">${String(h).padStart(2,'0')}</option>`).join('');
+    minSel.innerHTML = [0,15,30,45].map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
+  }
+
+  // 依主管的管理部門代碼判斷所屬事業部（代碼本身就是事業部，或其所屬部門代碼換算回事業部）；
+  // scope 含 ALL（例如總經理）獨立歸為「全公司權限」一組；都對不到則歸「其他」。
+  const groupOfManager = (m)=>{
+    const scope = m.scope || [];
+    if(scope.includes('ALL')) return {key:'ALL', label:'全公司權限'};
+    for(const code of scope){
+      if(divByCode[code]) return {key:code, label:divByCode[code].name};
+      const dept = deptByCode[code];
+      if(dept && dept.divisionCode && divByCode[dept.divisionCode]) return {key:dept.divisionCode, label:divByCode[dept.divisionCode].name};
+    }
+    return {key:'OTHER', label:'其他'};
+  };
+
+  const cbHtml = (a, settings)=>{
+    const roleLabel = a.role==='admin' ? '人資管理員' : `${a.dept||'—'} ${a.title||''}`.trim();
+    const emailNote = a.email ? '' : '　<span style="color:var(--red)">（尚未填寫 Email）</span>';
+    return `<label><input type="checkbox" class="notify-mgr-cb" value="${a.id}" ${settings.managerIds.includes(a.id)?'checked':''}> ${a.name}（${roleLabel}）${emailNote}</label>`;
+  };
+
+  const applySettings = (settings)=>{
+    const blocks = [];
+    if(admins.length){
+      blocks.push(`<div class="notify-group-title">人資管理員</div>` + admins.map(a=>cbHtml(a,settings)).join(''));
+    }
+
+    const grouped = {};
+    managers.forEach(m=>{
+      const g = groupOfManager(m);
+      if(!grouped[g.key]) grouped[g.key] = {label:g.label, list:[]};
+      grouped[g.key].list.push(m);
+    });
+    const order = ['ALL', ...divisions.map(d=>d.code), 'OTHER'];
+    order.forEach(key=>{
+      const g = grouped[key];
+      if(!g || !g.list.length) return;
+      blocks.push(`<div class="notify-group-title">${g.label}</div>` + g.list.map(m=>cbHtml(m,settings)).join(''));
+    });
+
+    listEl.innerHTML = blocks.join('') || '<div style="font-size:.85rem;color:var(--ink3)">目前尚無帳號</div>';
+    hourSel.value = settings.hour;
+    minSel.value = [0,15,30,45].includes(settings.minute) ? settings.minute : 0;
+  };
+
+  if(GS_URL){
+    gsGet('getNotifySettings').then(d=>{
+      if(d.ok){ setNotifySettingsLocal(d); applySettings(d); }
+      else applySettings(getNotifySettingsLocal());
+    }).catch(()=> applySettings(getNotifySettingsLocal()));
+  } else {
+    applySettings(getNotifySettingsLocal());
+  }
+}
+
+function saveNotifyConfig(){
+  const managerIds = Array.from(document.querySelectorAll('.notify-mgr-cb:checked')).map(cb=>cb.value);
+  const hour = Number(document.getElementById('notify-hour').value);
+  const minute = Number(document.getElementById('notify-minute').value);
+  const status = document.getElementById('notify-status');
+  setNotifySettingsLocal({hour, minute, managerIds});
+
+  if(!GS_URL){
+    status.innerHTML = '<span style="color:var(--red)">尚未設定 Apps Script 網址，本機模式無法實際寄送通知信，請先於「系統管理」設定連線</span>';
+    return;
+  }
+  status.innerHTML = '<span style="color:var(--ink3)">儲存中…</span>';
+  gsPost({action:'saveNotifySettings', hour, minute, managerIds}).then(d=>{
+    status.innerHTML = d.ok
+      ? `<span style="color:var(--green)">已儲存，將於每天 ${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} 自動寄送（共 ${managerIds.length} 位主管）</span>`
+      : `<span style="color:var(--red)">儲存失敗：${d.error||'未知錯誤'}</span>`;
+  }).catch(err=>{
+    status.innerHTML = `<span style="color:var(--red)">連線失敗：${err.message}</span>`;
+  });
+}
+
+function testSendNotifications(){
+  const status = document.getElementById('notify-status');
+  if(!GS_URL){ status.innerHTML = '<span style="color:var(--red)">尚未設定 Apps Script 網址，無法寄送</span>'; return; }
+  status.innerHTML = '<span style="color:var(--ink3)">寄送中…</span>';
+  gsPost({action:'sendNotificationsNow'}).then(d=>{
+    if(!d.ok){ status.innerHTML = `<span style="color:var(--red)">寄送失敗：${d.error||'未知錯誤'}</span>`; return; }
+    status.innerHTML = `<span style="color:var(--green)">測試完成：已寄出 ${d.sentCount} 封（${d.skippedNoData} 位當日無壽星／滿週年未寄送，${d.skippedNoEmail} 位未填 Email 未寄送）</span>`;
+  }).catch(err=>{
+    status.innerHTML = `<span style="color:var(--red)">連線失敗：${err.message}</span>`;
+  });
 }
 
 /* ---------- 欄位範本 / CSV 匯入 ---------- */
