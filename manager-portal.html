@@ -199,6 +199,13 @@ tr:hover td{background:var(--paper)}
 
 /* ═══════ HR DASHBOARD ADD-ONS ═══════ */
 #s-app{flex-direction:row}
+.pg-ellipsis{padding:.35rem .3rem;font-size:.78rem;color:var(--ink3)}
+/* 員工名單／圖表篩選結果的表格欄位較多（含生日欄後共11欄），外框較窄的螢幕會放不下全部欄位。
+   .table-wrap 本身維持 overflow:hidden 只負責裁切外框圓角，實際的欄位溢出改由這層專屬的
+   捲動容器處理，讓表格改成左右捲動查看，而不是把最後幾欄直接裁切消失。 */
+.table-scroll{overflow-x:auto}
+.table-scroll table{width:auto;min-width:100%}
+.table-scroll th, .table-scroll td{white-space:nowrap}
 /* .admin-main 原本設 overflow-y:auto，但本身沒有高度限制，實際上並不會產生自己的捲動軸——
    頁面真正的捲動是在瀏覽器視窗（body/html）上。CSS 規範中只要祖先元素設了非 visible 的
    overflow，就會被視為 position:sticky 子孫元素的定位基準，即使該元素實際上沒有在捲動；
@@ -212,13 +219,15 @@ tr:hover td{background:var(--paper)}
 .notify-group-title{font-weight:700;font-size:.78rem;color:var(--ink2);margin-top:.7rem;padding-top:.6rem;border-top:1px solid var(--paper3)}
 .notify-group-title:first-child{margin-top:0;padding-top:0;border-top:none}
 .topbar{background:#fff;border-bottom:1px solid var(--paper3);padding:.85rem 2.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:20}
-.topbar .tb-title{font-size:.95rem;font-weight:700;color:var(--ink);margin-right:auto}
+.topbar .tb-title{font-size:.95rem;font-weight:700;color:var(--ink)}
 .topbar .tb-asof{font-size:.75rem;color:var(--ink3);background:var(--paper2);padding:.35rem .75rem;border-radius:12px}
 .topbar select{width:auto;min-width:160px;padding:.5rem .75rem;font-size:.82rem}
 .topbar .btn-sm{white-space:nowrap}
 .tb-crumb{display:flex;align-items:center}
 .tb-crumb .tb-static{font-size:.82rem;color:var(--ink2);background:var(--paper2);padding:.5rem .9rem;border-radius:var(--radius);border:1px solid var(--paper3);white-space:nowrap}
 .tb-crumb-sep{color:var(--ink3);font-size:.8rem}
+.tb-headcount{font-size:.95rem;font-weight:700;color:var(--ink);white-space:nowrap;margin-right:auto}
+.tb-headcount #tb-headcount-num{color:var(--accent2)}
 
 .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;margin-bottom:1.75rem}
 @media (max-width:1300px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
@@ -411,7 +420,7 @@ tr:hover td{background:var(--paper)}
 
   <div class="admin-main">
     <div class="topbar">
-      <div class="tb-title" id="tb-scope-label">全公司</div>
+      <div class="tb-title" id="tb-scope-label">組織範圍</div>
       <div class="tb-crumb">
         <select id="division-filter" onchange="changeDivisionFilter(this.value)"></select>
         <span class="tb-static" id="division-label" style="display:none"></span>
@@ -421,6 +430,7 @@ tr:hover td{background:var(--paper)}
         <select id="dept-filter" onchange="changeDeptFilter(this.value)"></select>
         <span class="tb-static" id="dept-label" style="display:none"></span>
       </div>
+      <div class="tb-headcount">在職人數 <span id="tb-headcount-num">—</span> 人</div>
       <span class="tb-asof" id="tb-asof">資料基準日：—</span>
     </div>
 
@@ -470,10 +480,12 @@ tr:hover td{background:var(--paper)}
               </div>
             </div>
           </div>
-          <table>
-            <thead id="overview-drill-thead"></thead>
-            <tbody id="overview-drill-body"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead id="overview-drill-thead"></thead>
+              <tbody id="overview-drill-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -510,10 +522,12 @@ tr:hover td{background:var(--paper)}
               </div>
             </div>
           </div>
-          <table>
-            <thead id="comp-drill-thead"></thead>
-            <tbody id="comp-drill-body"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead id="comp-drill-thead"></thead>
+              <tbody id="comp-drill-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -547,6 +561,31 @@ tr:hover td{background:var(--paper)}
             <thead><tr><th id="dept-summary-colhead">部門</th><th>在職人數</th><th>平均年資</th><th>近12月到職人數</th><th>近12月離職人數</th><th>年化離職率</th></tr></thead>
             <tbody id="dept-summary-body"></tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="section-block drill-section" id="movement-drill" style="display:none">
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3 id="movement-drill-title">篩選結果</h3>
+            <div class="table-actions">
+              <span class="cc-sub" id="movement-drill-count" style="margin-right:.75rem"></span>
+              <button class="btn-secondary btn-sm" onclick="clearDrill('movement')">清除篩選 ✕</button>
+              <div class="dl-dropdown-wrap">
+                <button class="btn-secondary btn-sm" onclick="toggleReportMenu(this)">📄 報表下載</button>
+                <div class="dl-dropdown-menu">
+                  <button onclick="downloadReport('movement','xlsx')">Excel（.xlsx）</button>
+                  <button onclick="downloadReport('movement','docx')">Word（.docx）</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead id="movement-drill-thead"></thead>
+              <tbody id="movement-drill-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -586,10 +625,12 @@ tr:hover td{background:var(--paper)}
               </div>
             </div>
           </div>
-          <table>
-            <thead id="care-drill-thead"></thead>
-            <tbody id="care-drill-body"></tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead id="care-drill-thead"></thead>
+              <tbody id="care-drill-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -612,10 +653,12 @@ tr:hover td{background:var(--paper)}
             </div>
           </div>
         </div>
-        <table>
-          <thead id="dir-thead"></thead>
-          <tbody id="dir-body"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table>
+            <thead id="dir-thead"></thead>
+            <tbody id="dir-body"></tbody>
+          </table>
+        </div>
         <div class="pagination">
           <span id="dir-count"></span>
           <div class="pg-btns" id="dir-pager"></div>
@@ -734,7 +777,11 @@ function resolveScope(scope, orgTree){
     return { level:'company', divisions: divisions.slice(), departments: departments.slice() };
   }
   const divCodes = scope.filter(c => divisions.some(d=>d.code===c));
-  const deptCodesDirect = scope.filter(c => departments.some(d=>d.code===c));
+  // normalizeDeptCodes() 會替「部門代碼直接填事業部代碼」的員工建立一個代碼與事業部相同的虛擬部門
+  // （本質上就是該事業部本身，不是另一個獨立部門）。這裡若某代碼已經算進 divCodes（事業部授權），
+  // 就不能再把「剛好同代碼」的虛擬部門也算成一筆獨立的「部門授權」，否則會誤判成 mixed（事業部＋部門
+  // 混合權限），導致單一事業部主管的組織圖少了「點根節點清除部門篩選、回到整個事業部」的功能。
+  const deptCodesDirect = scope.filter(c => departments.some(d=>d.code===c) && !divCodes.includes(c));
   const visibleDepartments = departments.filter(d =>
     divCodes.includes(d.divisionCode) || deptCodesDirect.includes(d.code)
   );
@@ -1205,11 +1252,9 @@ function computeStats(list, asOf){
   const yearHireResign = [];
   for(let i=9;i>=0;i--){
     const y = asOf.getFullYear() - i;
-    yearHireResign.push({
-      label: String(y),
-      hires: list.filter(e=>e.tenureStart && fromISO(e.tenureStart).getFullYear()===y).length,
-      resigns: list.filter(e=>e.resignDate && fromISO(e.resignDate).getFullYear()===y).length
-    });
+    const hiresList = list.filter(e=>e.tenureStart && fromISO(e.tenureStart).getFullYear()===y);
+    const resignsList = list.filter(e=>e.resignDate && fromISO(e.resignDate).getFullYear()===y);
+    yearHireResign.push({ label: String(y), hires: hiresList.length, resigns: resignsList.length, hiresList, resignsList });
   }
   // 月份人力趨勢（近12個月）：每月以「月底」在職人數結算，本月尚未走完，改以「當日」在職人數為準。
   const monthHeadcountTrend = [];
@@ -1225,11 +1270,12 @@ function computeStats(list, asOf){
     const mDate = new Date(asOf.getFullYear(), asOf.getMonth()-i, 1);
     const monthEnd = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0, 23,59,59);
     const activeAtEnd = list.filter(e=>isActiveOn(e, monthEnd)).length;
-    const resigns = list.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), mDate)).length;
-    const hires = list.filter(e=>e.tenureStart && sameMonth(fromISO(e.tenureStart), mDate)).length;
+    const resignsList = list.filter(e=>e.resignDate && sameMonth(fromISO(e.resignDate), mDate));
+    const hiresList = list.filter(e=>e.tenureStart && sameMonth(fromISO(e.tenureStart), mDate));
+    const resigns = resignsList.length, hires = hiresList.length;
     const avgHC = activeAtEnd + resigns/2;
     const rate = avgHC>0 ? resigns/avgHC*100 : 0;
-    months.push({label:`${mDate.getMonth()+1}月`, headcount:activeAtEnd, resigns, hires, rate:+rate.toFixed(1)});
+    months.push({label:`${mDate.getMonth()+1}月`, headcount:activeAtEnd, resigns, hires, rate:+rate.toFixed(1), hiresList, resignsList});
   }
   const annualTurnover = annualizedTurnoverRate(list, asOf);
 
@@ -1447,7 +1493,13 @@ function groupedBarChart(id, labels, series, colors, opts={}){
       scales:{
         x:{grid:{display:false}, ticks:{color:PALETTE.ink3, font:{size:11}}},
         y:{beginAtZero:true, grid:{color:PALETTE.paper3}, ticks:{color:PALETTE.ink3, font:{size:11}}}
-      }
+      },
+      onClick: opts.onClick ? (evt, elements, chart)=>{
+        if(!elements.length) return;
+        const el = elements[0];
+        opts.onClick(chart.data.labels[el.index], series[el.datasetIndex].label);
+      } : undefined,
+      onHover: opts.onClick ? (evt, elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; } : undefined
     }
   };
   if(opts.showValues) config.plugins = [makeBarValueLabelsPlugin()];
@@ -1601,8 +1653,7 @@ function enterApp(){
 function populateOrgFilters(){
   const scope = currentScope();
   const scopeLabel = document.getElementById('tb-scope-label');
-  const labelText = {company:'全公司視角', division:'事業部視角', department:'部門視角', mixed:'責任範圍視角'}[scope.level];
-  scopeLabel.textContent = labelText;
+  scopeLabel.textContent = '組織範圍';
 
   const divSel = document.getElementById('division-filter');
   const divLbl = document.getElementById('division-label');
@@ -1704,6 +1755,7 @@ function renderAll(){
 
 function renderKPI(stats){
   document.getElementById('kpi-active').textContent = stats.activeCount;
+  document.getElementById('tb-headcount-num').textContent = stats.activeCount;
   document.getElementById('kpi-turnover').textContent = stats.annualTurnover.toFixed(1)+'%';
   document.getElementById('kpi-tenure').textContent = fmtYears(stats.avgTenureAll);
   document.getElementById('kpi-age').textContent = stats.avgAge.toFixed(1)+' 歲';
@@ -1803,8 +1855,11 @@ function renderMultiDivisionOrgChart(divisions, deptStats, highlightCode){
  *  用來呈現部門代碼直接填 3DA100（總經理直屬）但不屬於人資營運處等任何實際部門的人數（已扣除總經理本人）。
  *  nodeKind：第二層 nodes 方框代表的是事業部還是部門（'division'｜'department'，預設 'department'），
  *  決定點選該方框時要切換事業部篩選還是部門篩選；tier3、總經理室固定是部門／事業部層級，不受此參數影響。
- *  backToAllCode：若提供（通常是 'ALL'），根節點方框（此時是某個事業部本身）會變成可點選，
- *  點下去回到「全部事業部」的全公司組織圖；僅在登入者本身就有全公司視角（而非單一事業部主管）時才會傳入此參數。
+ *  backToAllCode：若提供，根節點方框（此時是某個事業部本身）會變成可點選：
+ *    - 全公司視角登入者傳入 'ALL'，點下去回到「全部事業部」的全公司組織圖。
+ *    - 單一事業部主管（部級單位）傳入自己該事業部的代碼，點下去等於「重新選一次自己的事業部」，
+ *      藉由 orgChartGoToDivision() 內部固定會重置部門篩選的邏輯，讓已下鑽到處級單位（部門）的
+ *      畫面回到部級單位（整個事業部）；不影響「無法再下鑽」的部門層級主管，僅事業部層級才有效果。
  *  auditOfficeCount：若提供（非 null），在根節點方框左側加一個獨立的「稽核」方框（大小比照總經理室方框），
  *  用來呈現董事長室（3DA001）的人數，不與其他事業部並列在第二層。 */
 function renderOrgChart(rootLabel, rootCount, nodes, tier3, rootCode, highlightCode, gmOfficeCount, nodeKind, backToAllCode, auditOfficeCount){
@@ -2059,9 +2114,12 @@ function renderOverview(stats, asOf){
     const gmOfficeCount = currentDivisionFilter === '3DA100'
       ? Math.max(0, orgActive.filter(e=>e.deptCode==='3DA100').length - 1)
       : undefined;
-    // 只有本身就擁有全公司視角的登入者（人資後台／總經理），點選事業部根節點方框才能回到全部事業部的
-    // 全公司組織圖；單一事業部主管本來就沒有「全部事業部」可回去，不提供這個返回功能。
-    const backToAllCode = currentScope().level === 'company' ? 'ALL' : undefined;
+    // 全公司視角登入者，點選事業部根節點方框回到全部事業部的全公司組織圖；
+    // 單一事業部主管（部級單位）本來就沒有「全部事業部」可回去，但如果目前已下鑽到某個
+    // 處級單位（部門），點選根節點（自己的事業部）方框要能清除部門篩選、回到部級單位本身。
+    const backToAllCode = currentScope().level === 'company' ? 'ALL'
+      : (currentScope().level === 'division' && divInfo) ? divInfo.code
+      : undefined;
     renderOrgChart(rootLabel, orgActiveCount, orgDeptSorted, undefined, divInfo ? divInfo.code : undefined, currentDeptFilter !== 'ALL' ? currentDeptFilter : undefined, gmOfficeCount, 'department', backToAllCode);
   }
 
@@ -2174,12 +2232,28 @@ function renderMovement(stats){
   lineChart('c-month-trend', trend.monthHeadcountTrend.map(m=>m.label), trend.monthHeadcountTrend.map(m=>m.headcount), PALETTE.blue, {showValues:true});
   lineChart('c-year-turnover-trend', trend.yearTurnoverTrend.map(y=>y.label), trend.yearTurnoverTrend.map(y=>y.rate), PALETTE.serious, {percent:true, showValues:true});
   lineChart('c-turnover-trend', trend.months.map(m=>m.label), trend.months.map(m=>m.rate), PALETTE.serious, {percent:true, showValues:true});
+  // 點選長條圖：依點到的年度／月份＋到職或離職，找出對應的原始名單下鑽顯示；
+  // recompute 內部重新判斷 useCompanyWide（不直接沿用外層變數），確保篩選條件切換後
+  // 下鑽表格能依當下最新的計算基礎（全公司原始資料或範圍內資料）重新算出正確名單。
+  const hireResignClick = (isYear) => (label, series) => {
+    const entry = (isYear ? trend.yearHireResign : trend.months).find(e=>e.label===label);
+    if(!entry) return;
+    const list = series==='到職' ? entry.hiresList : entry.resignsList;
+    const chartId = isYear ? 'c-year-hire-resign' : 'c-hire-resign';
+    const valueLabel = isYear ? `${label}年${series}` : `${label}${series}`;
+    toggleDrill('movement', chartId, '', valueLabel, list, (freshStats)=>{
+      const freshUseCompanyWide = currentDivisionFilter === 'ALL' && currentScope().level === 'company';
+      const freshTrend = freshUseCompanyWide ? computeStats(EMPLOYEES, new Date()) : freshStats;
+      const freshEntry = (isYear ? freshTrend.yearHireResign : freshTrend.months).find(e=>e.label===label);
+      return freshEntry ? (series==='到職' ? freshEntry.hiresList : freshEntry.resignsList) : [];
+    });
+  };
   groupedBarChart('c-year-hire-resign', trend.yearHireResign.map(y=>y.label),
     [{label:'到職',data:trend.yearHireResign.map(y=>y.hires)},{label:'離職',data:trend.yearHireResign.map(y=>y.resigns)}],
-    [PALETTE.good, PALETTE.critical], {showValues:true});
+    [PALETTE.good, PALETTE.critical], {showValues:true, onClick: hireResignClick(true)});
   groupedBarChart('c-hire-resign', trend.months.map(m=>m.label),
     [{label:'到職',data:trend.months.map(m=>m.hires)},{label:'離職',data:trend.months.map(m=>m.resigns)}],
-    [PALETTE.good, PALETTE.critical], {showValues:true});
+    [PALETTE.good, PALETTE.critical], {showValues:true, onClick: hireResignClick(false)});
 
   // 全部事業部視角時，「各部門年資與離職概況」改以事業部彙總資料呈現，欄位標題也隨之改為「事業部」。
   const showDivisions = currentDivisionFilter === 'ALL' && currentScope().divisions.length > 1;
@@ -2197,6 +2271,8 @@ function renderMovement(stats){
       <td>${d.resigned12}</td>
       <td>${d.turnoverRate.toFixed(1)}%</td>
     </tr>`).join('') || `<tr><td colspan="6" class="table-empty">目前檢視範圍內無資料</td></tr>`;
+
+  refreshActiveDrill('movement', stats);
 }
 
 function renderCare(stats, asOf){
@@ -2245,6 +2321,7 @@ const EMPLOYEE_COLUMNS = [
   {key:'position', label:'職位', get:e=>e.position},
   {key:'grade', label:'職等', get:e=>Number(e.grade)||0},
   {key:'jobCategory', label:'職種', get:e=>e.jobCategory},
+  {key:'birthday', label:'生日', get:e=>e.birthday},
   {key:'age', label:'年齡', get:(e,asOf)=>ageOn(e.birthday,asOf)},
   {key:'tenure', label:'年資', get:(e,asOf)=>tenureYears(e,asOf)},
   {key:'status', label:'在職狀態', get:e=>e.employStatus}
@@ -2291,6 +2368,7 @@ function employeeRowHTML(e, asOf){
       <td>${e.position}</td>
       <td>${e.grade}</td>
       <td>${e.jobCategory}</td>
+      <td>${e.birthday}</td>
       <td>${ageOn(e.birthday,asOf)}</td>
       <td>${fmtYears(tenureYears(e,asOf))}</td>
       <td><span class="badge ${e.employStatus==='在職'?'pass':'fail'}">${e.employStatus}</span></td>
@@ -2301,11 +2379,12 @@ function employeeRowHTML(e, asOf){
 const DRILL_IDS = {
   composition: {section:'comp-drill', body:'comp-drill-body', title:'comp-drill-title', count:'comp-drill-count', thead:'comp-drill-thead'},
   care: {section:'care-drill', body:'care-drill-body', title:'care-drill-title', count:'care-drill-count', thead:'care-drill-thead'},
-  overview: {section:'overview-drill', body:'overview-drill-body', title:'overview-drill-title', count:'overview-drill-count', thead:'overview-drill-thead'}
+  overview: {section:'overview-drill', body:'overview-drill-body', title:'overview-drill-title', count:'overview-drill-count', thead:'overview-drill-thead'},
+  movement: {section:'movement-drill', body:'movement-drill-body', title:'movement-drill-title', count:'movement-drill-count', thead:'movement-drill-thead'}
 };
-let drillState = { composition:null, care:null, overview:null };
-let drillListRaw = { composition:[], care:[], overview:[] };
-let drillSort = { composition:{key:null, dir:1}, care:{key:null, dir:1}, overview:{key:null, dir:1} };
+let drillState = { composition:null, care:null, overview:null, movement:null };
+let drillListRaw = { composition:[], care:[], overview:[], movement:[] };
+let drillSort = { composition:{key:null, dir:1}, care:{key:null, dir:1}, overview:{key:null, dir:1}, movement:{key:null, dir:1} };
 function showDrill(page, fieldLabel, valueLabel, list, scrollIntoView){
   const ids = DRILL_IDS[page];
   drillListRaw[page] = list;
@@ -2323,7 +2402,7 @@ function renderDrillBody(page){
   const list = drillListRaw[page];
   const sorted = state.key ? sortEmployeeList(list, EMPLOYEE_COLUMNS, state, asOf) : list.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
   document.getElementById(ids.count).textContent = `共 ${sorted.length} 筆`;
-  document.getElementById(ids.body).innerHTML = sorted.map(e=>employeeRowHTML(e,asOf)).join('') || `<tr><td colspan="10" class="table-empty">查無符合資料</td></tr>`;
+  document.getElementById(ids.body).innerHTML = sorted.map(e=>employeeRowHTML(e,asOf)).join('') || `<tr><td colspan="11" class="table-empty">查無符合資料</td></tr>`;
   renderSortableHead(ids.thead, EMPLOYEE_COLUMNS, page, state);
 }
 function clearDrill(page){
@@ -2372,15 +2451,34 @@ function renderDirectoryPage(){
   const start = (dirPage-1)*DIR_PAGE_SIZE;
   const pageItems = list.slice(start, start+DIR_PAGE_SIZE);
 
-  document.getElementById('dir-body').innerHTML = pageItems.map(e=>employeeRowHTML(e,asOf)).join('') || `<tr><td colspan="10" class="table-empty">查無符合資料</td></tr>`;
+  document.getElementById('dir-body').innerHTML = pageItems.map(e=>employeeRowHTML(e,asOf)).join('') || `<tr><td colspan="11" class="table-empty">查無符合資料</td></tr>`;
   renderSortableHead('dir-thead', EMPLOYEE_COLUMNS, 'directory', dirSort);
 
   document.getElementById('dir-count').textContent = `共 ${total} 筆`;
   const pager = document.getElementById('dir-pager');
   let btns = `<button class="pg-btn" ${dirPage<=1?'disabled':''} onclick="dirGoto(${dirPage-1})">上一頁</button>`;
-  for(let p=1;p<=totalPages;p++){ btns += `<button class="pg-btn ${p===dirPage?'active':''}" onclick="dirGoto(${p})">${p}</button>`; }
+  paginationPages(dirPage, totalPages).forEach(p=>{
+    btns += p==='…' ? `<span class="pg-ellipsis">…</span>` : `<button class="pg-btn ${p===dirPage?'active':''}" onclick="dirGoto(${p})">${p}</button>`;
+  });
   btns += `<button class="pg-btn" ${dirPage>=totalPages?'disabled':''} onclick="dirGoto(${dirPage+1})">下一頁</button>`;
   pager.innerHTML = btns;
+}
+/** 頁碼太多時只顯示第一頁、最後一頁、目前頁前後各一頁，中間用「…」省略，
+ *  確保不論總頁數多少，頁碼按鈕數量固定不會超出卡片寬度、導致右側頁碼被裁掉點不到。 */
+function paginationPages(current, total){
+  const delta = 1;
+  const pages = [];
+  for(let i=1;i<=total;i++){
+    if(i===1 || i===total || (i>=current-delta && i<=current+delta)) pages.push(i);
+  }
+  const result = [];
+  let last = 0;
+  pages.forEach(p=>{
+    if(last && p-last>1) result.push('…');
+    result.push(p);
+    last = p;
+  });
+  return result;
 }
 function dirGoto(p){ dirPage=p; renderDirectoryPage(); }
 
@@ -2804,7 +2902,9 @@ function saveAccount(){
   const applyLocal = (savedId)=>{
     if(id){
       const idx = list.findIndex(a=>a.id===id);
-      list[idx] = Object.assign({}, list[idx], {name, username, role, scope}, extra, pwd?{password:pwd}:{});
+      // 管理員的帳號可以改名，鍵值（.id）跟著帳號走，這裡要同步更新，否則改名後
+      // 沒重新整理頁面，馬上再編輯/刪除會因為本機快取還拿著舊帳號值而找不到列。
+      list[idx] = Object.assign({}, list[idx], {name, username, role, scope, id: savedId||username}, extra, pwd?{password:pwd}:{});
     } else {
       list.push(Object.assign({id:savedId||Date.now().toString(), name, username, role, scope, password:pwd}, extra));
     }
