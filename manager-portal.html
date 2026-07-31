@@ -2230,9 +2230,13 @@ function renderComposition(stats, asOf){
   doughnutChart('c-status', ['在職','近12個月離職'], [stats.activeCount, stats.resigned12.length], [PALETTE.good, PALETTE.critical],
     {onClick: (label)=> toggleDrill('composition', 'c-status', '在職狀態', label, label==='在職' ? stats.active : stats.resigned12,
       (freshStats)=> label==='在職' ? freshStats.active : freshStats.resigned12)});
-  const eduOrder = ['博士','碩士','大學','四技','二技','高中職','國中','未填寫'];
-  const eduLabels = eduOrder.filter(k=>stats.eduCounts[k]);
-  doughnutChart('c-edu', eduLabels, eduLabels.map(k=>stats.eduCounts[k]), CAT.slice(0,eduLabels.length),
+  // eduOrder 僅決定「已知學制」的顯示順序；實際試算表出現但不在清單內的學制（例如二專／五專／高職
+  // 等原本漏列的變體）不會被丟掉不顯示，改成依人數排在「未填寫」之前，避免圖表人數總和少於在職人數。
+  const eduOrder = ['博士','碩士','大學','四技','二技','三專','二專','五專','高中職','高職','高中','國中','國小'];
+  const eduKnown = eduOrder.filter(k=>stats.eduCounts[k]);
+  const eduUnknown = Object.keys(stats.eduCounts).filter(k=>k!=='未填寫' && !eduOrder.includes(k)).sort((a,b)=>stats.eduCounts[b]-stats.eduCounts[a]);
+  const eduLabels = [...eduKnown, ...eduUnknown, ...(stats.eduCounts['未填寫'] ? ['未填寫'] : [])];
+  doughnutChart('c-edu', eduLabels, eduLabels.map(k=>stats.eduCounts[k]), eduLabels.map((_,i)=>CAT[i%CAT.length]),
     {onClick: onClick('c-edu', '最高學歷', (e,label)=>(e.education||'未填寫')===label)});
   const jobLabels = Object.keys(stats.jobCatCounts).sort((a,b)=>stats.jobCatCounts[b]-stats.jobCatCounts[a]);
   barChart('c-jobcat', jobLabels, jobLabels.map(k=>stats.jobCatCounts[k]),
