@@ -203,6 +203,11 @@ tr:hover td{background:var(--paper)}
 /* ═══════ HR DASHBOARD ADD-ONS ═══════ */
 #s-app{flex-direction:row}
 .pg-ellipsis{padding:.35rem .3rem;font-size:.78rem;color:var(--ink3)}
+.btn-changepwd{width:100%;background:#fff;border:1px solid var(--paper3);color:var(--ink2);padding:.55rem;border-radius:var(--radius);font-size:.8rem;margin-bottom:.5rem;cursor:pointer}
+.btn-changepwd:hover{border-color:var(--accent2);color:var(--accent2)}
+.status-filter{display:flex;align-items:center;gap:.9rem;font-size:.82rem;color:var(--ink2)}
+.status-filter label{display:flex;align-items:center;gap:.35rem;cursor:pointer;white-space:nowrap}
+.status-filter input{width:auto}
 /* 員工名單／圖表篩選結果的表格欄位較多（含生日欄後共11欄），外框較窄的螢幕會放不下全部欄位。
    .table-wrap 本身維持 overflow:hidden 只負責裁切外框圓角，實際的欄位溢出改由這層專屬的
    捲動容器處理，讓表格改成左右捲動查看，而不是把最後幾欄直接裁切消失。 */
@@ -422,6 +427,7 @@ tr:hover td{background:var(--paper)}
         <div class="su-av" id="sb-avatar">A</div>
         <div><div class="su-name" id="sb-name">—</div><div class="su-role" id="sb-role">—</div></div>
       </div>
+      <button class="btn-changepwd" onclick="openChangePwdModal()">修改密碼</button>
       <button class="btn-logout" onclick="doLogout()">登出</button>
     </div>
   </div>
@@ -652,6 +658,10 @@ tr:hover td{background:var(--paper)}
           <h3>員工清單</h3>
           <div class="table-actions">
             <div class="search-box"><span class="si">🔍</span><input type="text" id="dir-search" placeholder="搜尋姓名或員工編號" oninput="renderDirectory()"></div>
+            <div class="status-filter">
+              <label><input type="checkbox" id="dir-status-active" checked onchange="renderDirectory()"> 在職</label>
+              <label><input type="checkbox" id="dir-status-resigned" onchange="renderDirectory()"> 離職</label>
+            </div>
             <div class="dl-dropdown-wrap">
               <button class="btn-secondary btn-sm" onclick="toggleReportMenu(this)">📄 報表下載</button>
               <div class="dl-dropdown-menu">
@@ -887,6 +897,22 @@ tr:hover td{background:var(--paper)}
         2. 想看「整體趨勢是變好還是變差」、做年度目標追蹤或跨年比較，看年度離職率趨勢。<br>
         3. 今年／本月的資料點尚未走完整個期間，會隨著時間持續變動，現在看到的數字只是「目前為止」的累計狀況，不是最終定案的數字。
       </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ 修改密碼 MODAL ═══════ -->
+<div class="modal-overlay" id="modal-change-pwd">
+  <div class="modal">
+    <div class="modal-head"><h3>修改密碼</h3><button class="btn-close" onclick="closeChangePwdModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="modal-form">
+        <div class="form-group"><label>目前密碼 <span style="color:var(--red)">*</span></label><input type="password" id="cp-old" placeholder="請輸入目前密碼"></div>
+        <div class="form-group"><label>新密碼 <span style="color:var(--red)">*</span></label><input type="password" id="cp-new" placeholder="請輸入新密碼"></div>
+        <div class="form-group"><label>確認新密碼 <span style="color:var(--red)">*</span></label><input type="password" id="cp-confirm" placeholder="請再次輸入新密碼"></div>
+        <div class="login-err" id="cp-err" style="display:none"></div>
+        <button class="btn-primary" style="width:100%;padding:.7rem" onclick="submitChangePwd()">確認修改</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1758,6 +1784,54 @@ function doLogout(){
   document.getElementById('s-app').classList.remove('active');
   document.getElementById('s-login').classList.add('active');
 }
+
+/* ══════════════════════════════════════════════════════════════
+   修改密碼（登入者自行修改自己的密碼，人資管理員／主管皆可使用）
+   ══════════════════════════════════════════════════════════════ */
+function openChangePwdModal(){
+  document.getElementById('cp-old').value = '';
+  document.getElementById('cp-new').value = '';
+  document.getElementById('cp-confirm').value = '';
+  document.getElementById('cp-err').style.display = 'none';
+  document.getElementById('modal-change-pwd').classList.add('open');
+}
+function closeChangePwdModal(){ document.getElementById('modal-change-pwd').classList.remove('open'); }
+
+function submitChangePwd(){
+  const oldPwd = document.getElementById('cp-old').value;
+  const newPwd = document.getElementById('cp-new').value;
+  const confirmPwd = document.getElementById('cp-confirm').value;
+  const errEl = document.getElementById('cp-err');
+  errEl.style.display = 'none';
+
+  if(!oldPwd || !newPwd || !confirmPwd){ errEl.textContent='請完整填寫所有欄位'; errEl.style.display='block'; return; }
+  if(newPwd !== confirmPwd){ errEl.textContent='兩次輸入的新密碼不一致'; errEl.style.display='block'; return; }
+
+  // 密碼實際更新成功後，同步本機快取帳號清單與目前登入的 session，
+  // 這樣不用重新登入，且離線／連線失敗時的本機回退比對也會用到新密碼。
+  const applyLocal = ()=>{
+    const list = getAccounts();
+    const idx = list.findIndex(a=>a.id===currentUser.id);
+    if(idx>=0){ list[idx] = Object.assign({}, list[idx], {password:newPwd}); setAccounts(list); }
+    currentUser = Object.assign({}, currentUser, {password:newPwd});
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+    closeChangePwdModal();
+  };
+
+  if(GS_URL){
+    gsPost({action:'changeOwnPassword', id:currentUser.id, oldPassword:oldPwd, newPassword:newPwd}).then(d=>{
+      if(!d.ok){ errEl.textContent = d.error || '修改失敗'; errEl.style.display='block'; return; }
+      applyLocal();
+    }).catch(()=>{ errEl.textContent='連線失敗，請稍後再試'; errEl.style.display='block'; });
+  } else {
+    const acc = getAccounts().find(a=>a.id===currentUser.id);
+    const matches = acc && (acc.role==='manager'
+      ? String(acc.password).toLowerCase()===oldPwd.toLowerCase()
+      : String(acc.password)===oldPwd);
+    if(!matches){ errEl.textContent='目前密碼不正確'; errEl.style.display='block'; return; }
+    applyLocal();
+  }
+}
 function tryAutoLogin(){
   const raw = sessionStorage.getItem(SESSION_KEY);
   if(!raw) return false;
@@ -2628,7 +2702,10 @@ function renderDirectory(){
 function renderDirectoryPage(){
   const asOf = new Date();
   const q = (document.getElementById('dir-search')?.value||'').trim().toLowerCase();
+  const showActive = !!document.getElementById('dir-status-active')?.checked;
+  const showResigned = !!document.getElementById('dir-status-resigned')?.checked;
   let list = filteredEmployees();
+  list = list.filter(e => (showActive && e.employStatus==='在職') || (showResigned && e.employStatus!=='在職'));
   if(q) list = list.filter(e=>e.name.toLowerCase().includes(q) || e.empId.toLowerCase().includes(q));
   list = dirSort.key ? sortEmployeeList(list, EMPLOYEE_COLUMNS, dirSort, asOf) : list.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
 
@@ -2691,7 +2768,10 @@ function getReportData(source){
   const asOf = new Date();
   if(source === 'directory'){
     const q = (document.getElementById('dir-search')?.value || '').trim().toLowerCase();
+    const showActive = !!document.getElementById('dir-status-active')?.checked;
+    const showResigned = !!document.getElementById('dir-status-resigned')?.checked;
     let list = filteredEmployees();
+    list = list.filter(e => (showActive && e.employStatus==='在職') || (showResigned && e.employStatus!=='在職'));
     if(q) list = list.filter(e=>e.name.toLowerCase().includes(q) || e.empId.toLowerCase().includes(q));
     list = dirSort.key ? sortEmployeeList(list, EMPLOYEE_COLUMNS, dirSort, asOf) : list.slice().sort((a,b)=>a.deptCode.localeCompare(b.deptCode));
     return { list, asOf, title:'員工清單' };
@@ -2712,8 +2792,11 @@ function getReportMeta(source, asOf){
   const deptName = currentDeptFilter === 'ALL' ? '全部部門' : ((departments.find(d=>d.code===currentDeptFilter)||{}).name || currentDeptFilter);
   let filterCondition = '無';
   if(source === 'directory'){
+    const showActive = !!document.getElementById('dir-status-active')?.checked;
+    const showResigned = !!document.getElementById('dir-status-resigned')?.checked;
+    const statusLabel = showActive && showResigned ? '在職＋離職' : showActive ? '僅在職' : showResigned ? '僅離職' : '無（未勾選任何狀態）';
     const q = (document.getElementById('dir-search')?.value || '').trim();
-    if(q) filterCondition = `搜尋：${q}`;
+    filterCondition = `在職狀態：${statusLabel}` + (q ? `，搜尋：${q}` : '');
   } else {
     const cur = drillState[source];
     if(cur) filterCondition = cur.fieldLabel ? `${cur.fieldLabel} = ${cur.label}` : cur.label;
