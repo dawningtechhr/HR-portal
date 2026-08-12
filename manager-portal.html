@@ -995,18 +995,29 @@ function loadEmployeesLocal(){
   if(raw){ try{ EMPLOYEES = JSON.parse(raw); return; }catch(e){} }
   EMPLOYEES = generateEmployees();
 }
-/** 優先向 Google 試算表取得員工資料，失敗或未設定網址時回退為本機資料。 */
-function loadEmployees(cb){
+/** 登入後「總覽」頁面最先需要顯示的欄位（KPI 卡片＋組織圖／各部門人數＋今日壽星／滿週年）——
+ *  只有列在這裡的欄位，才會出現在登入當下第一波（較快）的員工資料請求裡；其餘欄位（人力組成／
+ *  員工關懷／員工名單等其他分頁才會用到的）留給登入後background的第二波「補齊全部欄位」請求，
+ *  這樣「總覽」頁面可以更快出現，不必等所有欄位都抓完。 */
+const OVERVIEW_FIELDS = ['empId','name','deptCode','deptName','birthday','employStatus','resignDate','tenureStart','deductYears'];
+
+/** 優先向 Google 試算表取得員工資料，失敗或未設定網址時回退為本機資料。
+ *  fields（選填）：只抓這幾個欄位（傳給後端 getEmployees 的 fields 參數），用於登入時
+ *  先讓「總覽」頁面用少數欄位快速出現；這種「部分欄位」的結果不會寫入本機快取，避免離線／
+ *  連不上試算表時的回退資料反而缺欄位——只有沒有指定 fields（抓全部欄位）的那次才會存快取。 */
+function loadEmployees(cb, fields){
   if(!GS_URL){ loadEmployeesLocal(); cb && cb(); return; }
-  gsGet('getEmployees').then(d=>{
+  const isPartial = Array.isArray(fields) && fields.length > 0;
+  const params = isPartial ? { fields: fields.join(',') } : undefined;
+  gsGet('getEmployees', params).then(d=>{
     if(d.ok && Array.isArray(d.list) && d.list.length){
       EMPLOYEES = d.list.map(o=>Object.assign({}, o, {deductYears:Number(o.deductYears)||0}));
-      saveEmployees();
-    } else {
+      if(!isPartial) saveEmployees();
+    } else if(!isPartial){
       loadEmployeesLocal();
     }
     cb && cb();
-  }).catch(()=>{ loadEmployeesLocal(); cb && cb(); });
+  }).catch(()=>{ if(!isPartial) loadEmployeesLocal(); cb && cb(); });
 }
 function saveEmployees(){ localStorage.setItem(EMP_KEY, JSON.stringify(EMPLOYEES)); }
 /** 部門代碼標準化：修正三種常見的部門代碼填寫誤差，需在 ORG_TREE 是最新組織架構後執行。
@@ -1719,7 +1730,17 @@ function enterApp(){
 
   // 組織圖需要即時的主管帳號資料（姓名／職稱）才能正確對應顯示，
   // 因此登入時除了組織架構外，也一併向後端刷新帳號清單，避免僅靠本機舊快取（多數部門對不到主管）。
-  let pending = 2;
+  // 員工資料也在這裡一併重新抓取（不能只依賴頁面載入當下、DOMContentLoaded 那次背景抓取）——
+  // 若使用者在那次背景請求回來前就先登入，畫面會先用還是空的 EMPLOYEES 算出「在職人數 0」，
+  // 之後就算背景請求晚一步抓到資料，也不會自動重新畫面，導致要等使用者自己切換分頁或重新整理
+  // 才會「突然」變成正確人數。在這裡明確等三項都完成再畫面，才能保證第一次渲染就是正確資料。
+  //
+  // 員工資料分兩階段抓：第一階段只抓 OVERVIEW_FIELDS（總覽頁面用得到的少數欄位），
+  // 讓「總覽」頁面能更快出現，不必等全部 26 個欄位都抓完；三項（組織架構／帳號清單／
+  // 總覽用員工資料）都完成後就先畫總覽頁面。畫面出現後，背景再抓一次「全部欄位」的員工資料，
+  // 抓完後用完整資料覆蓋 EMPLOYEES 並重新渲染一次——這一步不擋畫面，使用者如果之後切到
+  // 人力組成／員工關懷／員工名單等其他分頁時，資料通常已經補齊了。
+  let pending = 3;
   const proceedWhenReady = ()=>{
     pending--;
     if(pending > 0) return;
@@ -1728,9 +1749,11 @@ function enterApp(){
     currentDeptFilter = 'ALL';
     populateOrgFilters();
     switchTab('tab-overview');
+    loadEmployees(()=>{ normalizeDeptCodes(); renderAll(); });
   };
   loadOrgTree(proceedWhenReady);
   refreshAccountsFromBackend(proceedWhenReady);
+  loadEmployees(proceedWhenReady, OVERVIEW_FIELDS);
 }
 
 /** 依 currentScope().level 決定事業部／部門下拉選單要顯示為可切換的下拉，還是收合成固定文字。 */
@@ -3258,11 +3281,13 @@ window.addEventListener('DOMContentLoaded', ()=>{
   Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
   Chart.defaults.color = PALETTE.ink3;
   Chart.defaults.borderColor = PALETTE.paper3;
-  loadEmployees(()=>{
-    if(!tryAutoLogin()){
-      document.getElementById('s-login').classList.add('active');
-    }
-  });
+  // 不在這裡預先呼叫 loadEmployees()：enterApp()（tryAutoLogin 成功或手動登入都會呼叫到）
+  // 已經會自己重新抓一次員工資料，這裡如果先抓一次、抓完才判斷要不要自動登入，
+  // 會變成「先抓一次、登入時 enterApp() 又抓一次」，等於把員工資料的抓取時間疊加了兩次。
+  loadEmployeesLocal();
+  if(!tryAutoLogin()){
+    document.getElementById('s-login').classList.add('active');
+  }
 });
 
 </script>
