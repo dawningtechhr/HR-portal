@@ -848,7 +848,7 @@ tr:hover td{background:var(--paper)}
           <label>標題列（第幾列）</label>
           <input type="number" id="sync-headerrow" min="1" step="1" value="1" style="max-width:120px">
         </div>
-        <p style="font-size:.8rem;color:var(--ink3);margin:.4rem 0 .9rem;line-height:1.7">若來源檔案前面有幾列說明或空白，欄位標題不是在第 1 列，請填實際所在的列數（例如第 9 列）。來源檔案欄位需與「員工資料」178 個欄位完全一致、順序相同，系統不會另外比對欄位名稱。</p>
+        <p style="font-size:.8rem;color:var(--ink3);margin:.4rem 0 .9rem;line-height:1.7">若來源檔案前面有幾列說明或空白，欄位標題不是在第 1 列，請填實際所在的列數（例如第 9 列）。系統會依「欄位標題文字」自動比對來源檔案與「員工資料」178 個欄位，不是依欄位順序位置，來源檔案之後調整欄位順序、新增或刪除欄位都不影響比對結果，只要標題文字不變就能正確同步；找不到對應標題的欄位會留空。</p>
         <div style="display:flex;gap:.75rem;flex-wrap:wrap">
           <button class="btn-secondary btn-sm" onclick="readSyncHeaders()">讀取欄位</button>
           <button class="btn-primary btn-sm" onclick="saveSyncSourceConfig()">💾 儲存設定</button>
@@ -878,7 +878,7 @@ tr:hover td{background:var(--paper)}
       <div class="config-card">
         <h3>3. 執行同步</h3>
         <p style="font-size:.82rem;color:var(--ink3);margin-bottom:.9rem;line-height:1.7">
-          以來源檔案的資料整份取代 HR-PORTAL 試算表「員工資料」工作表目前所有欄位內容，執行後兩邊資料將完全一致。此操作會實際覆蓋員工資料，請確認來源檔案內容正確後再執行。
+          以來源檔案的資料（依欄位標題文字對應，不受欄位順序影響）整份取代 HR-PORTAL 試算表「員工資料」工作表目前所有欄位內容，執行後兩邊資料將完全一致。此操作會實際覆蓋員工資料，請確認來源檔案內容正確後再執行。
         </p>
         <button class="btn-danger btn-sm" onclick="runSyncNow()">📥 立即同步</button>
         <div id="sync-run-status" style="margin-top:.75rem;font-size:.82rem"></div>
@@ -3483,7 +3483,8 @@ function renderSyncSettings(){
     document.getElementById('sync-auto-label').textContent = d.autoEnabled ? '開啟' : '關閉';
     hourSel.value = d.hour;
     minSel.value = [0,15,30,45].includes(d.minute) ? d.minute : 0;
-    lastRunEl.textContent = d.lastRun ? `最後執行：${d.lastRun.time}（共 ${d.lastRun.rowCount} 筆資料）` : '尚未執行過同步';
+    const lastRunFieldsNote = (d.lastRun && d.lastRun.matchedFields != null && d.lastRun.totalFields != null) ? `，178 個欄位中比對到 ${d.lastRun.matchedFields} 個` : '';
+    lastRunEl.textContent = d.lastRun ? `最後執行：${d.lastRun.time}（共 ${d.lastRun.rowCount} 筆資料${lastRunFieldsNote}）` : '尚未執行過同步';
   }).catch(()=>{});
 }
 
@@ -3496,8 +3497,8 @@ function readSyncHeaders(){
   status.innerHTML = '<span style="color:var(--ink3)">讀取中…</span>';
   gsPost({action:'readSyncSourceHeaders', fileName, headerRow}).then(d=>{
     if(!d.ok){ status.innerHTML = `<span style="color:var(--red)">${d.error||'讀取失敗'}</span>`; return; }
-    const mismatch = d.columnCount !== d.targetColumnCount;
-    status.innerHTML = `<span style="color:${mismatch?'var(--red)':'var(--green)'}">✅ 已讀取「${fileName}」第 ${headerRow} 列，共 ${d.columnCount} 個欄位${mismatch ? `（與「員工資料」${d.targetColumnCount} 個欄位數量不同，請確認來源檔案欄位是否正確）` : ''}</span>`;
+    const mismatch = d.matchedFields !== d.targetColumnCount;
+    status.innerHTML = `<span style="color:${mismatch?'var(--red)':'var(--green)'}">✅ 已讀取「${fileName}」第 ${headerRow} 列，共 ${d.columnCount} 個欄位，其中依標題文字比對到「員工資料」178 個欄位中的 ${d.matchedFields} 個${mismatch ? `（尚有 ${d.targetColumnCount - d.matchedFields} 個「員工資料」欄位在來源檔案找不到對應標題，同步時這些欄位會留空，請確認是否為預期狀況）` : ''}</span>`;
   }).catch(err=>{
     status.innerHTML = `<span style="color:var(--red)">連線失敗：${err.message}</span>`;
   });
@@ -3542,8 +3543,9 @@ function runSyncNow(){
   status.innerHTML = '<span style="color:var(--ink3)">同步中，請稍候…</span>';
   gsPost({action:'runEmployeeDataSync'}).then(d=>{
     if(!d.ok){ status.innerHTML = `<span style="color:var(--red)">同步失敗：${d.error||'未知錯誤'}</span>`; return; }
-    status.innerHTML = `<span style="color:var(--green)">✅ 同步完成，共寫入 ${d.rowCount} 筆員工資料（${d.time}）</span>`;
-    document.getElementById('sync-lastrun').textContent = `最後執行：${d.time}（共 ${d.rowCount} 筆資料）`;
+    const fieldsNote = (d.matchedFields != null && d.totalFields != null) ? `，178 個欄位中比對到 ${d.matchedFields} 個` : '';
+    status.innerHTML = `<span style="color:var(--green)">✅ 同步完成，共寫入 ${d.rowCount} 筆員工資料${fieldsNote}（${d.time}）</span>`;
+    document.getElementById('sync-lastrun').textContent = `最後執行：${d.time}（共 ${d.rowCount} 筆資料${fieldsNote}）`;
     syncFromBackend();
   }).catch(err=>{
     status.innerHTML = `<span style="color:var(--red)">連線失敗：${err.message}</span>`;
