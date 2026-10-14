@@ -1109,6 +1109,13 @@ function pad2(n){ return String(n).padStart(2,'0'); }
 function mkDate(y,m,d){ return new Date(y,m-1,d); }
 function toISO(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
 function fromISO(s){ return s ? new Date(s+'T00:00:00') : null; }
+// 工作年資起算日加上扣減留停離職年資（年的小數值，換算成天數）後的有效起算日，供週年判斷用
+function effectiveTenureStart(e){
+  const d = fromISO(e.tenureStart);
+  if(!d || isNaN(d)) return d;
+  const days = Math.round((Number(e.deductYears)||0) * 365.25);
+  return days ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + days) : d;
+}
 
 const SURNAMES = ['陳','林','黃','張','李','王','吳','劉','蔡','楊','許','鄭','謝','郭','洪','曾','邱','廖','賴','徐','周','葉','蘇','莊','呂','江','何','蕭','羅','高'];
 const M_GIVEN = ['志明','家豪','俊傑','建宏','冠廷','宗翰','柏翔','彥廷','政宏','宇軒','承翰','昱丞','明哲','偉誠','忠翰','志良','豐楙','岳榮','慕義'];
@@ -1611,8 +1618,9 @@ function computeStats(list, asOf){
     return isValidDate(d) && d.getMonth()===asOf.getMonth() && d.getDate()===asOf.getDate();
   });
   // 「滿週年」指到職日的月/日與今日相同，且已滿至少一個完整年度（非到職當天）。
+  // 週年日要用「工作年資起算日＋扣減留停離職年資（換算天數）」順延後的日期判斷，與賀卡系統一致。
   const todayAnniversaries = active.filter(e=>{
-    const d = fromISO(e.tenureStart);
+    const d = effectiveTenureStart(e);
     return isValidDate(d) && d.getMonth()===asOf.getMonth() && d.getDate()===asOf.getDate() && asOf.getFullYear()>d.getFullYear();
   });
 
@@ -2510,7 +2518,7 @@ function renderOverview(stats, asOf){
     return `<div class="bday-card"><div class="bc-icon">🎂</div><div><div class="bc-name">${e.name}<span class="bc-dept">${e.deptName.split(' ').slice(1).join(' ')}</span></div><div class="bc-meta">現年 <span class="bc-num">${age}</span> 歲 · ${zodiacOf(e.birthday)}</div></div></div>`;
   });
   renderNameGrid('today-anniv-list', stats.todayAnniversaries, '今日無滿週年員工', e=>{
-    const years = asOf.getFullYear() - fromISO(e.tenureStart).getFullYear();
+    const years = asOf.getFullYear() - effectiveTenureStart(e).getFullYear();
     return `<div class="bday-card"><div class="bc-icon">🎉</div><div><div class="bc-name">${e.name}<span class="bc-dept">${e.deptName.split(' ').slice(1).join(' ')}</span></div><div class="bc-meta">到職滿 <span class="bc-num">${years}</span> 週年</div></div></div>`;
   });
 
